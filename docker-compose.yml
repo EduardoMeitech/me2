@@ -1,0 +1,73 @@
+version: "3.9"
+
+services:
+  # --- PostgreSQL 16 ---
+  me2-postgres:
+    image: postgres:16-alpine
+    container_name: me2-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-me2}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_production}
+      POSTGRES_DB: ${POSTGRES_DB:-me2}
+    ports:
+      - "5432:5432"
+    volumes:
+      - me2_pgdata:/var/lib/postgresql/data
+      - ./api/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-me2}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- FastAPI Backend ---
+  me2-api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: me2-api
+    restart: unless-stopped
+    depends_on:
+      me2-postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-me2}:${POSTGRES_PASSWORD:-change_me_in_production}@me2-postgres:5432/${POSTGRES_DB:-me2}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change_me_to_a_random_secret}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-480}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+
+  # --- Nginx Reverse Proxy ---
+  me2-nginx:
+    image: nginx:1.27-alpine
+    container_name: me2-nginx
+    restart: unless-stopped
+    depends_on:
+      - me2-api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./web/dist:/usr/share/nginx/html:ro
+
+  # --- Adminer (dev only) ---
+  me2-adminer:
+    image: adminer:4
+    container_name: me2-adminer
+    restart: unless-stopped
+    depends_on:
+      - me2-postgres
+    ports:
+      - "8080:8080"
+    profiles:
+      - dev
+
+volumes:
+  me2_pgdata:

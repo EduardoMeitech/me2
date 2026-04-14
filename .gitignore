@@ -1,0 +1,64 @@
+# ME2 .gitignore
+
+# --- Environment ---
+.env
+.env.local
+.env.production
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# --- Node ---
+node_modules/
+web/dist/
+web/build/
+.vite/
+
+# --- SQLite ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Credentials (NEVER commit) ---
+credentials/
+*.pickle
+client_secret.json
+token.pickle
+nginx/certs/*.pem
+nginx/certs/*.key
+nginx/certs/*.crt
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Docker ---
+docker-compose.override.yml
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Coverage ---
+htmlcov/
+.coverage
+coverage.xml

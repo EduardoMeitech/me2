@@ -1,0 +1,302 @@
+{
+  "$schema": "ME2 Equipment Configuration — POC v1.0",
+  "_doc": "Each entry defines one physical machine. The collector reads this file on startup and reloads every 15 min. To add a machine: copy an entry, change serial_number + connection, restart collector.",
+
+  "equipment": [
+    {
+      "serial_number": "MEI-2024-0042",
+      "name": "Depenadora 01",
+      "description": "Linha 1 — Depenadora automatica",
+      "model": "M241",
+      "manufacturer": "Schneider Electric",
+      "plant": "Meitech Sede",
+      "active": true,
+
+      "protocol": "modbus",
+      "connection": {
+        "host": "192.168.1.10",
+        "port": 502,
+        "unit_id": 1,
+        "timeout_s": 3,
+        "retry_count": 3,
+        "retry_delay_s": 5
+      },
+
+      "poll_interval_s": 1.0,
+
+      "serial_number_source": "variable",
+
+      "variables": {
+        "schneider": {
+          "serial_number": {
+            "address": 100,
+            "count": 10,
+            "type": "string",
+            "description": "GVL_ME2.sSerialNumber — 20 chars, 2 ASCII chars per register",
+            "encoding": "ascii"
+          },
+          "product_no": {
+            "address": 110,
+            "count": 10,
+            "type": "string",
+            "description": "GVL_ME2.sProductNo — current product code (20 chars)",
+            "encoding": "ascii"
+          },
+          "word_status": {
+            "address": 200,
+            "count": 1,
+            "type": "uint16",
+            "description": "GVL_ME2.wWordStatus — machine state bitmask calculated by FB_ME2Status"
+          },
+          "parts_ok": {
+            "address": 202,
+            "count": 1,
+            "type": "uint16",
+            "description": "GVL_ME2.dwPartsOK — good parts counter (cumulative within shift)",
+            "overflow_fix": true
+          },
+          "cycle_time": {
+            "address": 204,
+            "count": 2,
+            "type": "float32",
+            "byte_order": "big_endian",
+            "description": "GVL_ME2.rCycleTime — last completed cycle time in seconds (REAL = 2 registers)"
+          },
+          "process_01": {
+            "address": 300,
+            "count": 1,
+            "type": "bool",
+            "bit": 0,
+            "description": "GVL_ME2.bProcess_01"
+          },
+          "process_02": {
+            "address": 300,
+            "count": 1,
+            "type": "bool",
+            "bit": 1,
+            "description": "GVL_ME2.bProcess_02"
+          },
+          "process_03": {
+            "address": 300,
+            "count": 1,
+            "type": "bool",
+            "bit": 2,
+            "description": "GVL_ME2.bProcess_03"
+          },
+          "process_04": {
+            "address": 300,
+            "count": 1,
+            "type": "bool",
+            "bit": 3,
+            "description": "GVL_ME2.bProcess_04"
+          },
+          "process_05": {
+            "address": 300,
+            "count": 1,
+            "type": "bool",
+            "bit": 4,
+            "description": "GVL_ME2.bProcess_05"
+          },
+          "process_06": {
+            "address": 300,
+            "count": 1,
+            "type": "bool",
+            "bit": 5,
+            "description": "GVL_ME2.bProcess_06"
+          },
+          "process_07": {
+            "address": 300,
+            "count": 1,
+            "type": "bool",
+            "bit": 6,
+            "description": "GVL_ME2.bProcess_07"
+          },
+          "process_08": {
+            "address": 300,
+            "count": 1,
+            "type": "bool",
+            "bit": 7,
+            "description": "GVL_ME2.bProcess_08"
+          }
+        }
+      },
+
+      "alerts": {
+        "uptime_status_code": 18,
+        "uptime_variants": [18, 19],
+        "downtime_l1_min": 10,
+        "downtime_l2_min": 15,
+        "notify_l1": "operations",
+        "notify_l2": "management"
+      }
+    }
+  ],
+
+  "_siemens_example": "INACTIVE — Siemens S7-1200 example. To use: copy _siemens_equipment into the equipment array, set active to true, and adjust connection parameters.",
+  "_siemens_equipment": {
+    "serial_number": "MEI-2024-0099",
+    "name": "Escaldadeira 02",
+    "description": "Linha 2 — Escaldadeira com controle S7-1200",
+    "model": "S7-1200",
+    "manufacturer": "Siemens",
+    "plant": "Meitech Sede",
+    "active": false,
+
+    "protocol": "s7",
+    "connection": {
+      "host": "192.168.1.20",
+      "rack": 0,
+      "slot": 1,
+      "timeout_s": 3,
+      "retry_count": 3,
+      "retry_delay_s": 5
+    },
+
+    "poll_interval_s": 1.0,
+
+    "serial_number_source": "variable",
+
+    "variables": {
+      "siemens": {
+        "serial_number": {
+          "db": 100,
+          "offset": 0,
+          "size": 22,
+          "type": "string",
+          "description": "DB100.DBX0.0 — GVL_ME2.sSerialNumber (STRING[20] = 2 header + 20 chars)"
+        },
+        "product_no": {
+          "db": 100,
+          "offset": 22,
+          "size": 22,
+          "type": "string",
+          "description": "DB100.DBX22.0 — GVL_ME2.sProductNo"
+        },
+        "word_status": {
+          "db": 100,
+          "offset": 44,
+          "size": 2,
+          "type": "uint16",
+          "description": "DB100.DBW44 — GVL_ME2.wWordStatus"
+        },
+        "parts_ok": {
+          "db": 100,
+          "offset": 46,
+          "size": 4,
+          "type": "uint32",
+          "description": "DB100.DBD46 — GVL_ME2.dwPartsOK (DWORD, no overflow issue)",
+          "overflow_fix": false
+        },
+        "cycle_time": {
+          "db": 100,
+          "offset": 50,
+          "size": 4,
+          "type": "float32",
+          "description": "DB100.DBD50 — GVL_ME2.rCycleTime (REAL)"
+        },
+        "process_01": {
+          "db": 100,
+          "offset": 54,
+          "size": 1,
+          "type": "bool",
+          "bit": 0,
+          "description": "DB100.DBX54.0 — GVL_ME2.bProcess_01"
+        },
+        "process_02": {
+          "db": 100,
+          "offset": 54,
+          "size": 1,
+          "type": "bool",
+          "bit": 1,
+          "description": "DB100.DBX54.1 — GVL_ME2.bProcess_02"
+        },
+        "process_03": {
+          "db": 100,
+          "offset": 54,
+          "size": 1,
+          "type": "bool",
+          "bit": 2,
+          "description": "DB100.DBX54.2 — GVL_ME2.bProcess_03"
+        },
+        "process_04": {
+          "db": 100,
+          "offset": 54,
+          "size": 1,
+          "type": "bool",
+          "bit": 3,
+          "description": "DB100.DBX54.3 — GVL_ME2.bProcess_04"
+        },
+        "process_05": {
+          "db": 100,
+          "offset": 54,
+          "size": 1,
+          "type": "bool",
+          "bit": 4,
+          "description": "DB100.DBX54.4 — GVL_ME2.bProcess_05"
+        },
+        "process_06": {
+          "db": 100,
+          "offset": 54,
+          "size": 1,
+          "type": "bool",
+          "bit": 5,
+          "description": "DB100.DBX54.5 — GVL_ME2.bProcess_06"
+        },
+        "process_07": {
+          "db": 100,
+          "offset": 54,
+          "size": 1,
+          "type": "bool",
+          "bit": 6,
+          "description": "DB100.DBX54.6 — GVL_ME2.bProcess_07"
+        },
+        "process_08": {
+          "db": 100,
+          "offset": 54,
+          "size": 1,
+          "type": "bool",
+          "bit": 7,
+          "description": "DB100.DBX54.7 — GVL_ME2.bProcess_08"
+        }
+      }
+    },
+
+    "alerts": {
+      "uptime_status_code": 18,
+      "uptime_variants": [18],
+      "downtime_l1_min": 10,
+      "downtime_l2_min": 15,
+      "notify_l1": "operations",
+      "notify_l2": "management"
+    }
+  },
+
+  "notification_groups": {
+    "operations": {
+      "description": "Equipe operacional — recebe alerta L1 (parada > threshold)",
+      "emails": [
+        "operador1@meitech.com.br",
+        "operador2@meitech.com.br",
+        "supervisor.linha@meitech.com.br"
+      ]
+    },
+    "management": {
+      "description": "Gestao — recebe alerta L2 (escalacao por parada prolongada)",
+      "emails": [
+        "gerente.producao@meitech.com.br",
+        "diretor.operacoes@meitech.com.br",
+        "eduardo@meitech.com.br"
+      ]
+    }
+  },
+
+  "defaults": {
+    "poll_interval_s": 1.0,
+    "timezone": "America/Sao_Paulo",
+    "shifts": {
+      "T100": { "name": "Turno 1", "start": "05:00", "end": "13:29" },
+      "T200": { "name": "Turno 2", "start": "13:30", "end": "21:59" },
+      "T300": { "name": "Turno 3", "start": "22:00", "end": "04:59" }
+    }
+  }
+}
