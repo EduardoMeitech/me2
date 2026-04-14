@@ -1,13 +1,30 @@
 """ME2 application settings — loaded from .env via pydantic-settings."""
 
+import asyncio
+import platform
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Fix asyncpg on Windows — use SelectorEventLoop instead of ProactorEventLoop
+if platform.system() == "Windows":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+# Find .env file — check CWD, parent, and project root
+_env_candidates = [
+    Path(".env"),
+    Path("../.env"),
+    Path(__file__).resolve().parent.parent.parent / ".env",
+]
+_env_file = next((p for p in _env_candidates if p.exists()), ".env")
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_env_file),
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # Database

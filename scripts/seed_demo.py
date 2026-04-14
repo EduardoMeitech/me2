@@ -10,16 +10,22 @@ in the PostgreSQL database.
 
 import asyncio
 import logging
+import os
+import platform
 import random
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+# Fix asyncpg on Windows — use SelectorEventLoop instead of ProactorEventLoop
+if platform.system() == "Windows":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = "postgresql+asyncpg://me2:change_me_in_production@localhost:5432/me2"
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://me2:me2dev@localhost:5432/me2")
 
 
 async def seed():
@@ -87,7 +93,13 @@ async def seed():
         logger.info(f"Equipment: {equip_id}")
 
         # --- Shifts ---
-        for name, start, end in [("T100", "05:00", "13:29"), ("T200", "13:30", "21:59"), ("T300", "22:00", "04:59")]:
+        from datetime import time as dt_time
+        shifts = [
+            ("T100", dt_time(5, 0), dt_time(13, 29)),
+            ("T200", dt_time(13, 30), dt_time(21, 59)),
+            ("T300", dt_time(22, 0), dt_time(4, 59)),
+        ]
+        for name, start, end in shifts:
             await db.execute(
                 text("""
                     INSERT INTO me2_shifts (plant_id, name, start_time, end_time)
