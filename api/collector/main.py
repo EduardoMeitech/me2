@@ -37,8 +37,9 @@ DEFAULT_DB_PATH = os.environ.get(
     str(Path(__file__).resolve().parent.parent / "data" / "collector.db"),
 )
 
-# Shift boundaries (hour in local time, 24h format)
-SHIFT_BOUNDARIES: list[int] = [6, 14, 22]
+# Shift boundaries as (hour, minute) tuples in local time, 24h format.
+# Must be sorted in ascending order.
+SHIFT_BOUNDARIES: list[tuple[int, int]] = [(5, 0), (13, 30), (22, 0)]
 
 
 # ------------------------------------------------------------------
@@ -165,12 +166,12 @@ def _insert_alert(conn: sqlite3.Connection, alert: Alert) -> None:
 # Shift boundary detection
 # ------------------------------------------------------------------
 
-def _current_shift_hour() -> int:
-    """Return the boundary hour of the current shift in local time."""
+def _current_shift_boundary() -> tuple[int, int]:
+    """Return the (hour, minute) boundary of the current shift in local time."""
     now_local = datetime.now()
-    hour = now_local.hour
+    now_hm = (now_local.hour, now_local.minute)
     for boundary in reversed(SHIFT_BOUNDARIES):
-        if hour >= boundary:
+        if now_hm >= boundary:
             return boundary
     # Before the first boundary => belongs to the previous day's last shift
     return SHIFT_BOUNDARIES[-1]
@@ -299,8 +300,8 @@ async def run_collector(
     alert_engine = AlertEngine()
     conn = _ensure_db(db_path)
 
-    last_shift_hour = _current_shift_hour()
-    logger.info("Initial shift boundary hour: %d", last_shift_hour)
+    last_shift_boundary = _current_shift_boundary()
+    logger.info("Initial shift boundary: %s", last_shift_boundary)
 
     try:
         while True:
@@ -312,15 +313,15 @@ async def run_collector(
                 logger.info("Equipment configs reloaded (%d entries)", len(eq_configs))
 
             # Shift boundary detection
-            current_shift = _current_shift_hour()
-            if current_shift != last_shift_hour:
+            current_shift = _current_shift_boundary()
+            if current_shift != last_shift_boundary:
                 logger.info(
-                    "Shift boundary crossed (%d -> %d) — resetting processor state",
-                    last_shift_hour,
+                    "Shift boundary crossed (%s -> %s) — resetting processor state",
+                    last_shift_boundary,
                     current_shift,
                 )
                 processor.reset_shift_state()
-                last_shift_hour = current_shift
+                last_shift_boundary = current_shift
 
             # Poll each equipment
             for eq_cfg in eq_configs:

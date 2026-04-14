@@ -221,6 +221,13 @@ class OEESnapshot(Base):
     __tablename__ = "oee_snapshots"
     __table_args__ = (
         Index("ix_oee_equipment_date", "equipment_id", "date"),
+        Index(
+            "uq_oee_equipment_date_hour",
+            "equipment_id",
+            "date",
+            "hour",
+            unique=True,
+        ),
     )
 
     id: Mapped[str] = mapped_column(

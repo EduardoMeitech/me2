@@ -64,6 +64,7 @@ class ConfigLoader:
         validated: list[dict[str, Any]] = []
         for idx, eq in enumerate(equipments):
             self._validate(eq, idx)
+            self._normalize_variables(eq)
             validated.append(eq)
 
         self._equipments = validated
@@ -114,3 +115,120 @@ class ConfigLoader:
                 f"Equipment '{eq.get('serial_number', index)}' has invalid "
                 f"'connection' — must be a dict with at least a 'host' key"
             )
+
+    # ------------------------------------------------------------------
+    # Variable normalisation
+    # ------------------------------------------------------------------
+
+    # Variable names that map directly to a role (everything else -> "process")
+    _KNOWN_ROLES = frozenset({
+        "word_status", "parts_ok", "cycle_time",
+        "product_no", "serial_number",
+    })
+
+    # Modbus equipment.json type -> driver type understood by ModbusDriver
+    _MODBUS_TYPE_MAP: dict[str, str] = {
+        "uint16": "word",
+        "uint32": "dword",
+        "int16": "word",
+        "float32": "real",
+        "string": "string",
+        "bool": "bit",
+    }
+
+    # S7 equipment.json type -> driver type understood by Snap7Driver
+    _S7_TYPE_MAP: dict[str, str] = {
+        "uint16": "word",
+        "uint32": "dword",
+        "int16": "word",
+        "float32": "real",
+        "string": "string",
+        "bool": "bit",
+    }
+
+    @classmethod
+    def _normalize_variables(cls, eq: dict) -> None:
+        """Transform the nested variables dict from equipment.json into the
+        flat list-of-dicts format expected by ``_poll_equipment()``.
+
+        After this call:
+        - ``eq["variables"]`` is a ``list[dict]`` with keys: name, address, role.
+        - ``eq["cycle_time_var"]`` is the address dict for the cycle_time variable
+          (or ``None``).
+        - ``eq["product_no_var"]`` is the address dict for the product_no variable
+          (or ``None``).
+        """
+        raw_vars = eq.get("variables")
+        if not isinstance(raw_vars, dict):
+            # Already a list (or missing) — nothing to do
+            return
+
+        protocol = eq.get("protocol", "modbus")
+        vendor_key = "schneider" if protocol == "modbus" else "siemens"
+
+        vendor_vars: dict[str, dict] = raw_vars.get(vendor_key, {})
+        if not vendor_vars:
+            logger.warning(
+                "Equipment '%s': no variables under key '%s'",
+                eq.get("serial_number", "?"),
+                vendor_key,
+            )
+            eq["variables"] = []
+            return
+
+        flat: list[dict[str, Any]] = []
+        cycle_time_addr: dict | None = None
+        product_no_addr: dict | None = None
+
+        for var_name, var_def in vendor_vars.items():
+            # Determine role
+            role = var_name if var_name in cls._KNOWN_ROLES else "process"
+
+            # Build the address dict the driver expects
+            if protocol == "modbus":
+                type_map = cls._MODBUS_TYPE_MAP
+                driver_type = type_map.get(var_def.get("type", ""), var_def.get("type", "word"))
+                addr: dict[str, Any] = {
+                    "register": var_def["address"],
+                    "type": driver_type,
+                    "count": var_def.get("count", 1),
+                    "overflow_fix": var_def.get("overflow_fix", False),
+                }
+                if "bit" in var_def:
+                    addr["bit"] = var_def["bit"]
+            else:
+                # S7
+                type_map = cls._S7_TYPE_MAP
+                driver_type = type_map.get(var_def.get("type", ""), var_def.get("type", "word"))
+                addr = {
+                    "db": var_def["db"],
+                    "byte": var_def["offset"],
+                    "type": driver_type,
+                }
+                if "bit" in var_def:
+                    addr["bit"] = var_def["bit"]
+                if driver_type == "string":
+                    # S7 STRING: size includes the 2-byte header; length is the
+                    # payload the driver should read.
+                    addr["length"] = var_def.get("size", 22) - 2
+
+            # Stash direct-access addresses for cycle_time / product_no
+            if var_name == "cycle_time":
+                cycle_time_addr = addr
+            elif var_name == "product_no":
+                product_no_addr = addr
+
+            # Skip cycle_time and product_no from the polling list — the
+            # collector reads them inline when it encounters parts_ok.
+            if var_name in ("cycle_time", "product_no"):
+                continue
+
+            flat.append({
+                "name": var_name,
+                "address": addr,
+                "role": role,
+            })
+
+        eq["variables"] = flat
+        eq["cycle_time_var"] = cycle_time_addr
+        eq["product_no_var"] = product_no_addr

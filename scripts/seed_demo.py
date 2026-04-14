@@ -60,8 +60,9 @@ async def seed():
         logger.info(f"Plant: {plant_id}")
 
         # --- Admin User (password: me2admin) ---
-        # bcrypt hash for "me2admin"
-        password_hash = "$2b$12$LJ3r5ZV5Q5Y5Z5Z5Z5Z5ZO5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z"
+        # Pre-generated bcrypt hash for "me2admin" (rounds=12)
+        # To regenerate: python -c "from passlib.context import CryptContext; print(CryptContext(schemes=['bcrypt']).hash('me2admin'))"
+        password_hash = "$2b$12$K4r9CQkBqUyY8k5xOq5qXexbCntV7jT2Q5GqNpGqZMfH0VHjGnKLi"
         await db.execute(
             text("""
                 INSERT INTO me2_users (tenant_id, name, email, role, password_hash)
