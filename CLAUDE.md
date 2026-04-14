@@ -15,17 +15,55 @@ client sites worldwide. The current stage is a **POC with 1 Schneider equipment 
 
 ## Commands
 
+### Quick start (local dev — Windows)
+
+```bash
+# 1. Start PostgreSQL (must be running on port 5432)
+# 2. Run migrations
+cd api && PYTHONPATH=.. DATABASE_URL="postgresql+asyncpg://me2:me2dev@localhost:5432/me2" python -m alembic upgrade head
+
+# 3. Seed demo data
+cd .. && python scripts/seed_demo.py
+
+# 4. Start API (from project root)
+PYTHONPATH=. python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --log-level info
+
+# 5. Start frontend (separate terminal)
+cd web && npm run dev
+
+# 6. Start PLC simulator (separate terminal — generates fake data)
+python scripts/simulator.py
+```
+
+### Docker (production)
+
 - `docker compose up -d` — start all services (PostgreSQL + API + Nginx)
 - `docker compose --profile dev up` — start with Adminer (DB UI on :8080)
-- `cd api && uvicorn main:app --reload` — API in dev mode (needs local PostgreSQL)
-- `cd api && alembic upgrade head` — run pending migrations
-- `cd api && alembic revision --autogenerate -m "description"` — create migration
+
+### Individual commands
+
+- `cd api && PYTHONPATH=.. python -m alembic upgrade head` — run pending migrations
+- `cd api && PYTHONPATH=.. python -m alembic revision --autogenerate -m "description"` — create migration
 - `cd api && pytest` — run API tests
-- `cd web && npm run dev` — React frontend dev server
+- `cd web && npm run dev` — React frontend dev server (port 3000, proxies API)
 - `cd web && npm run build` — production build
 - `cd web && npm run lint` — ESLint
+- `python scripts/simulator.py` — PLC simulator (writes to collector SQLite)
+- `python scripts/seed_demo.py` — seed demo data into PostgreSQL
+
+### Default credentials
+
+- **Login:** `eduardo.rosa@meitech.com.br` / `me2admin`
+- **PostgreSQL:** user `me2`, password `me2dev`, database `me2`
 
 No test framework for the frontend yet — backend uses pytest + httpx.
+
+### Windows-specific notes
+
+- Python asyncpg requires `WindowsSelectorEventLoopPolicy` — already set in `api/core/config.py`
+- passlib is incompatible with bcrypt 5.0 — we use `bcrypt` directly in `api/core/auth.py`
+- pydantic-settings uses `extra="ignore"` to skip `VITE_*` vars from shared `.env`
+- `.env` file lives at project root, `config.py` searches CWD + parent + project root
 
 ## Architecture
 
@@ -33,15 +71,25 @@ Current stage (POC):
 
 ```
 Schneider PLC ──(Modbus TCP / VPN)──► ME2 Collector (Python)
+       or                                    │
+PLC Simulator ──(scripts/simulator.py)───────┘
                                         │
                                    SQLite (local buffer)
-                                        │ sync
-                                   FastAPI (local)
+                                        │ SyncService (5s)
+                                   FastAPI ──► WebSocket broadcast ──► React Dashboard
                                         │
-                                   PostgreSQL (Docker)
+                                   PostgreSQL
                                         │
-                                   React Dashboard
+                                   OEE Calculator (5min) ──► oee_snapshots
 ```
+
+**Data pipeline (verified working):**
+1. Collector (or Simulator) writes events to **SQLite** (trigger-on-change)
+2. **SyncService** (background task in FastAPI) reads unsynced rows every 5s
+3. Maps `serial_number` → `equipment_id`, inserts into **PostgreSQL**
+4. Broadcasts each event via **WebSocket** `/ws/live` to connected clients
+5. **OEE Calculator** (background task) recalculates hourly OEE every 5 minutes
+6. Frontend fetches via REST API + receives live updates via WebSocket
 
 Target (SaaS): collector publishes via MQTT over TLS → central PostgreSQL → multi-tenant
 dashboard. SQLite stays as the offline buffer at the edge. See `docs/architecture.md`.
@@ -75,6 +123,7 @@ me2/
 │   │   ├── config_loader.py      # Lê equipment.json (local ou API)
 │   │   ├── data_processor.py     # Detecta mudanças, corrige overflow, persiste
 │   │   ├── alert_engine.py       # Timer de parada L1/L2, envia email
+│   │   ├── sync_service.py       # SQLite → PostgreSQL sync + WebSocket broadcast
 │   │   └── main.py               # Loop principal assíncrono
 │   ├── core/
 │   │   ├── database.py           # SQLAlchemy async engine + session
@@ -90,6 +139,8 @@ me2/
 │   │   ├── alerts.py             # GET /api/v1/alerts/active, POST /alerts/{id}/ack
 │   │   ├── reports.py            # GET /api/v1/reports/shift, /reports/daily
 │   │   └── live.py               # WS /ws/live
+│   ├── services/
+│   │   └── oee_calculator.py     # OEE calculation (hourly + shift, runs every 5min)
 │   ├── ml/                       # ML Engine (Fase 2 — não implementar na POC)
 │   ├── db/
 │   │   └── init.sql              # Extensões PostgreSQL (uuid-ossp, etc.)
@@ -134,7 +185,8 @@ me2/
 │   ├── architecture.md
 │   └── gvl-standard.md           # Padrão GVL_ME2 para o time de automação
 ├── scripts/
-│   └── seed_demo.py              # Dados sintéticos para demo
+│   ├── seed_demo.py              # Dados sintéticos para demo
+│   └── simulator.py              # PLC simulator (generates data without real PLC)
 ├── docker-compose.yml
 ├── .env.example                  # Copiar para .env — nunca commitar .env
 └── CLAUDE.md
@@ -340,9 +392,18 @@ Material Design 3 + Meitech visual identity. Token file: `web/src/styles/theme.j
 The POC targets exactly: **1 Schneider equipment via VPN, Modbus TCP, live status + production per hour + OEE on the dashboard.**
 
 Success criteria:
-1. A manager opens the dashboard on mobile and sees the machine in real time
-2. A second equipment is added by editing only `equipment.json` — no code change
-3. Email alert fires when machine is stopped for more than L1 threshold
+1. A manager opens the dashboard on mobile and sees the machine in real time — **DONE (Sprint 0-2)**
+2. A second equipment is added by editing only `equipment.json` — no code change — **DONE (config-driven)**
+3. Email alert fires when machine is stopped for more than L1 threshold — **PARTIAL (alert engine exists, email placeholder)**
+
+What has been completed:
+- Full data pipeline: PLC Collector → SQLite → PostgreSQL → WebSocket → Dashboard
+- PLC Simulator for testing without real hardware
+- OEE automatic calculation (hourly, per equipment)
+- JWT authentication + login flow
+- Live Monitor, OEE Analytics, Alerts, Reports views
+- Config-driven equipment registration (equipment.json)
+- Modbus, Snap7, OPC-UA driver framework
 
 What is explicitly **OUT OF SCOPE** for the POC:
 - MQTT / cloud communication
