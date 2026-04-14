@@ -72,7 +72,7 @@ async def seed():
         await db.execute(
             text("""
                 INSERT INTO me2_users (tenant_id, name, email, role, password_hash)
-                VALUES (:tid, 'Eduardo Rosa', 'eduardo@meitech.com.br', 'meitech_admin', :pwd)
+                VALUES (:tid, 'Eduardo Rosa', 'eduardo.rosa@meitech.com.br', 'meitech_admin', :pwd)
                 ON CONFLICT (email) DO NOTHING
             """),
             {"tid": tenant_id, "pwd": password_hash},
