@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { colors, typography, shape, elevation } from '../styles/theme'
 import { useAuthStore } from '../lib/store'
 import Button from '../components/Button'
-import ME2Logo from '../components/ME2Logo'
+import { ME2LogoStatic } from '../components/ME2Logo'
 import api from '../lib/api'
 
 export default function Login() {
@@ -68,7 +68,7 @@ export default function Login() {
             />
           </div>
 
-          <ME2Logo size={36} />
+          <ME2LogoStatic size={36} />
           <p style={{
             fontFamily: typography.brandFamily,
             fontSize: 11, fontWeight: 400,
