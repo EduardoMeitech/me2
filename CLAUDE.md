@@ -373,8 +373,16 @@ Material Design 3 + Meitech visual identity. Token file: `web/src/styles/theme.j
 - Two aligned header cards (shared 30px title row + KPI row): Equipment info (left) + OEE Deployment with gauge circle (right). Cards stack vertically on narrow screens (`auto-fit, minmax(420px, 1fr)`).
 - OEE gauge colors: green (Availability), blue (Performance), gray (Quality), value centered
 - KPI values use `clamp(18px, 2vw, 26px)` for fluid sizing; flex-wrap for narrow layouts
-- Production bar chart + Status Pareto (horizontal bars as color legend)
-- Status Timeline (full width, colored segments)
+- Grid rows 2-3 (fixed `330px + 100px`): Production chart (left) + Status Pareto spanning both rows (right) + Status Timeline (bottom-left, same width as Production)
+- Production chart (Recharts): fills all shift hours with bars, UTC→BRT conversion (-3h), no Y-axis labels
+- StatusTimeline labels use Recharts-matching formula `(i + 0.5) / N * 100%` for vertical hour alignment between the two charts
+- Status Pareto shows ALL 8 status types (even 0%) to fill the card height
+- All three data views (Production, StatusTimeline, StatusPareto) respond to shift filter via `GET /api/v1/equipment/{id}/status?date=&shift=`
+
+**IMPORTANT — Shift time ranges in API:** Shifts are stored in local BRT but API queries use UTC. The conversion is hardcoded in `api/routers/equipment.py` and `api/routers/production.py`:
+- T100: 05:00-13:29 BRT = 08:00-16:29 UTC
+- T200: 13:30-21:59 BRT = 16:30-00:59 UTC  
+- T300: 22:00-04:59 BRT = 01:00-07:59 UTC (crosses midnight)
 
 **Colors:**
 - Primary: `#0066CC`

@@ -11,8 +11,8 @@
 
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { colors, typography, elevation, shape } from '../styles/theme'
-import { useEquipment, useOEE, useProduction } from '../hooks/useME2Data'
+import { colors, typography, elevation, shape, shifts, getCurrentShift } from '../styles/theme'
+import { useEquipment, useOEE, useProduction, useStatusEvents } from '../hooks/useME2Data'
 import { useUIStore } from '../lib/store'
 import Card from '../components/Card'
 import OEEGauge from '../components/OEEGauge'
@@ -26,22 +26,6 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-// Mock status data until the API endpoint is wired
-function mockStatusData(oee) {
-  if (!oee) return []
-  const uptimeMin = (oee.planned_min ?? 0) - (oee.downtime_min ?? 0)
-  const downtimeMin = oee.downtime_min ?? 0
-  const items = []
-  if (uptimeMin > 0) items.push({ word_status: 18, duration_min: uptimeMin })
-  if (downtimeMin > 0) {
-    // Distribute downtime across typical statuses
-    items.push({ word_status: 20, duration_min: downtimeMin * 0.35 })
-    items.push({ word_status: 24, duration_min: downtimeMin * 0.25 })
-    items.push({ word_status: 32, duration_min: downtimeMin * 0.30 })
-    items.push({ word_status: 16, duration_min: downtimeMin * 0.10 })
-  }
-  return items
-}
 
 export default function OEEAnalytics() {
   const [searchParams] = useSearchParams()
@@ -54,8 +38,21 @@ export default function OEEAnalytics() {
 
   const { oee } = useOEE(selectedEquipment, date, selectedShift)
   const { production } = useProduction(selectedEquipment, date, selectedShift)
+  const { statusEvents } = useStatusEvents(selectedEquipment, date, selectedShift)
 
   const currentEquipment = equipment.find((e) => e.id === selectedEquipment)
+
+  // Build StatusPareto data from real status events (aggregate duration per word_status)
+  const statusData = (() => {
+    if (!statusEvents || statusEvents.length === 0) return []
+    const map = {}
+    for (const ev of statusEvents) {
+      const ws = ev.word_status
+      if (!map[ws]) map[ws] = { word_status: ws, duration_min: 0 }
+      map[ws].duration_min += ev.duration_min ?? 0
+    }
+    return Object.values(map)
+  })()
 
   // Aggregate OEE from hourly snapshots (oee is an array)
   const agg = Array.isArray(oee) && oee.length > 0
@@ -76,7 +73,6 @@ export default function OEEAnalytics() {
 
   const targetPerHour = cycleTimeAvg > 0 ? Math.floor(3600 / cycleTimeAvg) : 0
   const lostTimeMin = agg?.downtime_min ?? 0
-  const statusData = mockStatusData(agg)
 
   const selectStyle = {
     padding: '8px 16px', borderRadius: shape.small,
@@ -159,23 +155,35 @@ export default function OEEAnalytics() {
 
           </div>
 
-          {/* ── Row 2: Production chart (left) + Status Pareto (right) ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr minmax(240px, 280px)', gap: 16 }}>
-            <Card>
-              <ProductionBar data={production} targetPerHour={targetPerHour} />
+          {/* ── Rows 2-3 grid: fixed heights so layout never changes between shifts ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gridTemplateRows: '330px 100px', gap: 16 }}>
+            {/* Top-left: Production chart */}
+            <Card style={{ gridColumn: 1, gridRow: 1, overflow: 'hidden' }}>
+              <ProductionBar
+                data={production}
+                targetPerHour={targetPerHour}
+                startTime={shifts[selectedShift || getCurrentShift()]?.start ?? '05:00'}
+                endTime={shifts[selectedShift || getCurrentShift()]?.end ?? '22:00'}
+              />
             </Card>
-            <Card>
+
+            {/* Right: Accumulated Status — spans both rows */}
+            <Card style={{ gridColumn: 2, gridRow: '1 / 3', overflow: 'hidden' }}>
               <StatusPareto statusData={statusData} />
             </Card>
-          </div>
 
-          {/* ── Row 3: Status Timeline ── */}
-          <Card>
-            <p style={{ ...typography.titleSmall, color: colors.onSurface, marginBottom: 8 }}>
-              Status Changes
-            </p>
-            <StatusTimeline events={[]} />
-          </Card>
+            {/* Bottom-left: Status Timeline */}
+            <Card style={{ gridColumn: 1, gridRow: 2, overflow: 'hidden' }}>
+              <p style={{ ...typography.titleSmall, color: colors.onSurface, marginBottom: 8 }}>
+                Status Changes
+              </p>
+              <StatusTimeline
+                events={statusEvents}
+                startTime={shifts[selectedShift || getCurrentShift()]?.start ?? '05:00'}
+                endTime={shifts[selectedShift || getCurrentShift()]?.end ?? '22:00'}
+              />
+            </Card>
+          </div>
 
 
         </div>

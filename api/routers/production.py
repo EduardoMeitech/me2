@@ -50,14 +50,21 @@ async def get_production(
     day_end: datetime = day_start + timedelta(days=1)
 
     if shift is not None:
-        shift_result = await db.execute(
-            select(Shift).where(Shift.name == shift)
-        )
-        shift_row: Shift | None = shift_result.scalar_one_or_none()
-        if shift_row is not None:
-            day_start = datetime.combine(parsed_date, shift_row.start_time, tzinfo=timezone.utc)
-            day_end = datetime.combine(parsed_date, shift_row.end_time, tzinfo=timezone.utc)
-            # Handle overnight shifts
+        # Shift times are stored in local BRT; convert to UTC (+3h)
+        # T100: 05:00-13:29 BRT = 08:00-16:29 UTC
+        # T200: 13:30-21:59 BRT = 16:30-00:59 UTC
+        # T300: 22:00-04:59 BRT = 01:00-07:59 UTC
+        shift_utc_ranges = {
+            "T100": (timedelta(hours=8, minutes=0), timedelta(hours=16, minutes=29)),
+            "T200": (timedelta(hours=16, minutes=30), timedelta(hours=23, minutes=59)),
+            "T300": (timedelta(hours=1, minutes=0), timedelta(hours=7, minutes=59)),
+        }
+        if shift in shift_utc_ranges:
+            start_offset, end_offset = shift_utc_ranges[shift]
+            base = datetime(parsed_date.year, parsed_date.month, parsed_date.day, tzinfo=timezone.utc)
+            day_start = base + start_offset
+            day_end = base + end_offset + timedelta(minutes=1)
+            # T300 crosses midnight: end is next calendar day
             if day_end <= day_start:
                 day_end += timedelta(days=1)
 

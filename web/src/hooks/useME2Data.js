@@ -102,6 +102,39 @@ export function useProduction(equipmentId, date, shift) {
 }
 
 /**
+ * Fetch status events for a specific equipment (for StatusTimeline + StatusPareto).
+ */
+export function useStatusEvents(equipmentId, date, shift) {
+  const [statusEvents, setStatusEvents] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!equipmentId) return
+    let cancelled = false
+
+    async function fetch() {
+      try {
+        setLoading(true)
+        const params = {}
+        if (date) params.date = date
+        if (shift) params.shift = shift
+        const res = await api.get(`/api/v1/equipment/${equipmentId}/status`, { params })
+        if (!cancelled) setStatusEvents(res.data?.data ?? [])
+      } catch (err) {
+        console.error('Erro ao buscar status events:', err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    fetch()
+    return () => { cancelled = true }
+  }, [equipmentId, date, shift])
+
+  return { statusEvents, loading }
+}
+
+/**
  * Fetch active alerts.
  */
 export function useActiveAlerts() {

@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import date as date_type, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.core.database import get_db
@@ -15,6 +15,7 @@ from api.core.schemas import (
     APIResponse,
     EquipmentLiveResponse,
     EquipmentResponse,
+    StatusEventResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -87,5 +88,80 @@ async def equipment_live(
     return APIResponse(
         success=True,
         data=live.model_dump(mode="json"),
+        meta={"version": "1.0", "ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
+@router.get("/{equipment_id}/status", response_model=APIResponse)
+async def equipment_status(
+    equipment_id: str,
+    date: str | None = Query(None, description="Date YYYY-MM-DD (default today)"),
+    shift: str | None = Query(None, description="Shift: T100, T200, T300"),
+    db: AsyncSession = Depends(get_db),
+) -> APIResponse:
+    """Return status events for the given equipment, date and shift, with durations."""
+    # Parse date
+    if date:
+        try:
+            target_date = date_type.fromisoformat(date)
+        except ValueError:
+            target_date = datetime.now(timezone.utc).date()
+    else:
+        target_date = datetime.now(timezone.utc).date()
+
+    # Shift time ranges (UTC — Sao Paulo is UTC-3, shifts defined in local time)
+    # T100: 05:00-13:29 local = 08:00-16:29 UTC
+    # T200: 13:30-21:59 local = 16:30-00:59 UTC
+    # T300: 22:00-04:59 local = 01:00-07:59 UTC
+    shift_ranges = {
+        "T100": (timedelta(hours=8, minutes=0), timedelta(hours=16, minutes=29)),
+        "T200": (timedelta(hours=16, minutes=30), timedelta(hours=23, minutes=59)),
+        "T300": (timedelta(hours=1, minutes=0), timedelta(hours=7, minutes=59)),
+    }
+
+    if shift and shift in shift_ranges:
+        start_offset, end_offset = shift_ranges[shift]
+        day_start = datetime(target_date.year, target_date.month, target_date.day, tzinfo=timezone.utc) + start_offset
+        day_end = datetime(target_date.year, target_date.month, target_date.day, tzinfo=timezone.utc) + end_offset + timedelta(minutes=1)
+        if shift == "T300":
+            # T300 crosses midnight — end is next day
+            day_end = day_end + timedelta(days=1)
+    else:
+        # Full day: 05:00 local (08:00 UTC) to next day 05:00
+        day_start = datetime(target_date.year, target_date.month, target_date.day, 8, 0, tzinfo=timezone.utc)
+        day_end = day_start + timedelta(hours=24)
+
+    result = await db.execute(
+        select(StatusEvent)
+        .where(
+            and_(
+                StatusEvent.equipment_id == equipment_id,
+                StatusEvent.ts >= day_start,
+                StatusEvent.ts < day_end,
+            )
+        )
+        .order_by(StatusEvent.ts.asc())
+    )
+    rows = result.scalars().all()
+
+    # Calculate duration for each status event
+    events = []
+    for i, row in enumerate(rows):
+        if i + 1 < len(rows):
+            duration = (rows[i + 1].ts - row.ts).total_seconds() / 60.0
+        else:
+            duration = (datetime.now(timezone.utc) - row.ts).total_seconds() / 60.0
+
+        events.append(
+            StatusEventResponse(
+                word_status=row.word_status,
+                ts=row.ts,
+                duration_min=round(duration, 1),
+            ).model_dump(mode="json")
+        )
+
+    return APIResponse(
+        success=True,
+        data=events,
         meta={"version": "1.0", "ts": datetime.now(timezone.utc).isoformat()},
     )
