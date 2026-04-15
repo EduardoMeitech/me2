@@ -369,9 +369,10 @@ Material Design 3 + Meitech visual identity. Token file: `web/src/styles/theme.j
 
 **Footer:** `ME2Footer` component with dual `SpinCircle` animation flanking static "ME2 / Keep Moving" (Amina + Baloo 2). Animation keyframe `meiSpin` for continuous rotation.
 
-**OEE Analytics layout** (E2-inspired):
-- Two aligned header cards (shared 30px title row + KPI row): Equipment info (left) + OEE Deployment with gauge circle (right)
+**OEE Analytics layout** (E2-inspired, responsive):
+- Two aligned header cards (shared 30px title row + KPI row): Equipment info (left) + OEE Deployment with gauge circle (right). Cards stack vertically on narrow screens (`auto-fit, minmax(420px, 1fr)`).
 - OEE gauge colors: green (Availability), blue (Performance), gray (Quality), value centered
+- KPI values use `clamp(18px, 2vw, 26px)` for fluid sizing; flex-wrap for narrow layouts
 - Production bar chart + Status Pareto (horizontal bars as color legend)
 - Status Timeline (full width, colored segments)
 

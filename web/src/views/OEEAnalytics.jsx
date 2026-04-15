@@ -115,10 +115,10 @@ export default function OEEAnalytics() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* ── Row 1: Two cards with aligned title (30px) + KPI rows ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, height: 126 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 16 }}>
 
             {/* Card left: Equipment + KPIs */}
-            <Card style={{ padding: '10px 20px', display: 'grid', gridTemplateRows: '30px 1fr' }}>
+            <Card style={{ padding: '10px 20px', display: 'grid', gridTemplateRows: '30px 1fr', minHeight: 126 }}>
               <div>
                 <p style={{ fontSize: 18, fontWeight: 600, color: colors.onSurface, lineHeight: 1.2 }}>
                   {currentEquipment?.name ?? 'Equipamento'}
@@ -127,7 +127,7 @@ export default function OEEAnalytics() {
                   {currentEquipment?.serial_number}
                 </p>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-evenly', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-evenly', alignItems: 'center', flexWrap: 'wrap', gap: '8px 4px' }}>
                 <MetricPill label="Cycle Time Avg(s)" value={cycleTimeAvg.toFixed(2)} />
                 <MetricPill label="Standard CycleTime(s)" value={cycleTimeAvg.toFixed(1)} />
                 <MetricPill label="Lost Time (min)" value={lostTimeMin.toFixed(2)} color={lostTimeMin > 0 ? colors.error : undefined} />
@@ -136,7 +136,7 @@ export default function OEEAnalytics() {
             </Card>
 
             {/* Card right: OEE Deployment + A/P/Q + Gauge */}
-            <Card style={{ padding: '10px 10px 10px 20px', display: 'grid', gridTemplateRows: '30px 1fr', gridTemplateColumns: '1fr auto' }}>
+            <Card style={{ padding: '10px 10px 10px 20px', display: 'grid', gridTemplateRows: '30px 1fr', gridTemplateColumns: '1fr auto', minHeight: 126 }}>
               <p style={{ fontSize: 18, fontWeight: 600, color: colors.onSurface, lineHeight: 1.2 }}>
                 OEE Deployment
               </p>
@@ -150,7 +150,7 @@ export default function OEEAnalytics() {
                   compact
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-evenly', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-evenly', alignItems: 'center', flexWrap: 'wrap', gap: '8px 4px' }}>
                 <MetricPill label="Availability" value={`${(availability * 100).toFixed(2)}%`} color={colors.success} />
                 <MetricPill label="Performance" value={`${(performance * 100).toFixed(2)}%`} color={colors.primary} />
                 <MetricPill label="Quality" value={`${(quality * 100).toFixed(2)}%`} color={colors.outline} />
@@ -160,7 +160,7 @@ export default function OEEAnalytics() {
           </div>
 
           {/* ── Row 2: Production chart (left) + Status Pareto (right) ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr minmax(240px, 280px)', gap: 16 }}>
             <Card>
               <ProductionBar data={production} targetPerHour={targetPerHour} />
             </Card>
@@ -187,11 +187,11 @@ export default function OEEAnalytics() {
 // ── Metric pill (header row) ───────────────────────────────────────────────
 function MetricPill({ label, value, color }) {
   return (
-    <div style={{ textAlign: 'center' }}>
-      <p style={{ fontSize: 11, fontWeight: 500, color: colors.onSurfaceVariant, marginBottom: 4, letterSpacing: '0.3px' }}>
+    <div style={{ textAlign: 'center', minWidth: 0 }}>
+      <p style={{ fontSize: 11, fontWeight: 500, color: colors.onSurfaceVariant, marginBottom: 4, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
         {label}
       </p>
-      <p style={{ fontSize: 26, fontWeight: 700, color: color ?? colors.onSurface, lineHeight: 1 }}>
+      <p style={{ fontSize: 'clamp(18px, 2vw, 26px)', fontWeight: 700, color: color ?? colors.onSurface, lineHeight: 1, whiteSpace: 'nowrap' }}>
         {value}
       </p>
     </div>
