@@ -3,18 +3,23 @@
  * creating the visual allusion: ME2 ↔ MES (Manufacturing Execution System).
  *
  * Technique: 3D Y-axis flip with character swap at the midpoint.
- * Front face = "2", back face = "S". When the flip reaches 90° (edge-on),
- * the character swaps seamlessly. The "S" is shown mirrored (scaleX -1)
- * so it appears correctly when the back face is visible.
+ * When the flip reaches 90° (edge-on, character invisible),
+ * "2" swaps to "S" seamlessly.
  */
 
 import { useState, useEffect, useRef } from 'react'
 import { colors, typography } from '../styles/theme'
 
-const CYCLE_MS = 5000       // total cycle duration
 const SHOW_2_MS = 3000      // time showing "2" before flipping
 const FLIP_MS = 600         // flip transition duration
 const SHOW_S_MS = 800       // time showing "S" at peak
+
+const PHASES = [
+  { name: 'idle',       duration: SHOW_2_MS, rotation: 0,   char: '2' },
+  { name: 'flip-to-s',  duration: FLIP_MS,   rotation: 90,  char: '2' },
+  { name: 'show-s',     duration: SHOW_S_MS, rotation: 180, char: 'S' },
+  { name: 'flip-to-2',  duration: FLIP_MS,   rotation: 270, char: 'S' },
+]
 
 export default function ME2Logo({
   size = 32,
@@ -24,57 +29,56 @@ export default function ME2Logo({
   style = {},
 }) {
   const textColor = light ? '#FFFFFF' : (color || colors.meitech)
-  const [phase, setPhase] = useState('idle') // idle | flip-to-s | show-s | flip-to-2
-  const timerRef = useRef(null)
+  const [phaseIdx, setPhaseIdx] = useState(0)
+  const cancelledRef = useRef(false)
 
   useEffect(() => {
     if (!animated) return
 
-    function cycle() {
-      // Phase 1: Show "2" (idle)
-      setPhase('idle')
+    cancelledRef.current = false
+    let timer = null
 
-      timerRef.current = setTimeout(() => {
-        // Phase 2: Flip to "S"
-        setPhase('flip-to-s')
-
-        timerRef.current = setTimeout(() => {
-          // Phase 3: Show "S"
-          setPhase('show-s')
-
-          timerRef.current = setTimeout(() => {
-            // Phase 4: Flip back to "2"
-            setPhase('flip-to-2')
-
-            timerRef.current = setTimeout(() => {
-              cycle() // restart
-            }, FLIP_MS)
-          }, SHOW_S_MS)
-        }, FLIP_MS)
-      }, SHOW_2_MS)
+    function step(idx) {
+      if (cancelledRef.current) return
+      setPhaseIdx(idx)
+      timer = setTimeout(() => {
+        step((idx + 1) % PHASES.length)
+      }, PHASES[idx].duration)
     }
 
-    cycle()
-    return () => clearTimeout(timerRef.current)
+    step(0)
+
+    return () => {
+      cancelledRef.current = true
+      clearTimeout(timer)
+    }
   }, [animated])
 
-  const isShowingS = phase === 'show-s' || phase === 'flip-to-2'
+  const phase = PHASES[phaseIdx]
 
-  // Rotation angles per phase
-  const rotation =
-    phase === 'idle' ? 0 :
-    phase === 'flip-to-s' ? 90 :
-    phase === 'show-s' ? 180 :
-    phase === 'flip-to-2' ? 270 : 0
+  const fontDef = "'Baloo 2', cursive"
 
-  const baseStyle = {
-    fontFamily: typography.brandFamily,
+  const meStyle = {
+    fontFamily: fontDef,
     fontSize: size,
-    fontWeight: 700,
+    fontWeight: 800,
     color: textColor,
     lineHeight: 1,
-    letterSpacing: '-0.5px',
+    letterSpacing: `${size * 0.12}px`,
+  }
+
+  const flipStyle = {
+    fontFamily: fontDef,
+    fontSize: size,
+    fontWeight: 800,
+    color: textColor,
+    lineHeight: 1,
     display: 'inline-block',
+    width: `${size * 0.65}px`,
+    textAlign: 'center',
+    transform: `rotateY(${phase.rotation}deg)`,
+    transition: phase.name === 'idle' ? 'none' : `transform ${FLIP_MS}ms ease-in-out`,
+    transformOrigin: 'center',
   }
 
   return (
@@ -86,21 +90,8 @@ export default function ME2Logo({
         ...style,
       }}
     >
-      {/* "ME" — static */}
-      <span style={baseStyle}>ME</span>
-
-      {/* "2" / "S" — animated flip with character swap */}
-      <span
-        style={{
-          ...baseStyle,
-          display: 'inline-block',
-          transform: `rotateY(${rotation}deg)`,
-          transition: phase === 'idle' ? 'none' : `transform ${FLIP_MS}ms ease-in-out`,
-          transformOrigin: 'center',
-        }}
-      >
-        {isShowingS ? 'S' : '2'}
-      </span>
+      <span style={meStyle}>ME</span>
+      <span style={flipStyle}>{phase.char}</span>
     </span>
   )
 }
@@ -112,12 +103,11 @@ export function ME2LogoStatic({ size = 15, color, light = false, style = {} }) {
   const textColor = light ? '#FFFFFF' : (color || colors.meitech)
   return (
     <span style={{
-      fontFamily: typography.brandFamily,
+      fontFamily: "'Baloo 2', cursive",
       fontSize: size,
-      fontWeight: 700,
+      fontWeight: 800,
       color: textColor,
       lineHeight: 1,
-      letterSpacing: '-0.5px',
       ...style,
     }}>
       ME2

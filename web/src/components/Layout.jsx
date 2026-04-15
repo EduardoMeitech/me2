@@ -111,7 +111,7 @@ export default function Layout({ children }) {
             alt="Meitech"
             style={{ width: 64, height: 'auto', marginBottom: 2 }}
           />
-          <ME2Logo size={16} light />
+          <ME2Logo size={34} light />
         </div>
 
         {/* Nav items */}
