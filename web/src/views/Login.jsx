@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { colors, typography, shape, elevation } from '../styles/theme'
 import { useAuthStore } from '../lib/store'
 import Button from '../components/Button'
+import ME2Logo from '../components/ME2Logo'
 import api from '../lib/api'
 
 export default function Login() {
@@ -67,15 +68,7 @@ export default function Login() {
             />
           </div>
 
-          <h1 style={{
-            fontFamily: typography.brandFamily,
-            fontSize: 32, fontWeight: 700,
-            color: colors.meitech,
-            letterSpacing: '-0.5px',
-            lineHeight: 1,
-          }}>
-            ME2
-          </h1>
+          <ME2Logo size={36} />
           <p style={{
             fontFamily: typography.brandFamily,
             fontSize: 11, fontWeight: 400,

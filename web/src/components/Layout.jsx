@@ -6,6 +6,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { colors, typography, shape, layout } from '../styles/theme'
 import { useAuthStore } from '../lib/store'
+import ME2Logo, { ME2LogoCompact } from './ME2Logo'
 
 const RAIL_WIDTH = layout.railWidth
 
@@ -55,12 +56,7 @@ function ME2Footer() {
     }}>
       <SpinCircle size={44} speed={7} reverse />
       <div style={{ textAlign: 'center' }}>
-        <div style={{
-          fontFamily: typography.brandFamily, fontSize: 15, fontWeight: 700,
-          color: colors.meitech, letterSpacing: '0.5px',
-        }}>
-          ME2
-        </div>
+        <ME2Logo size={15} />
         <div style={{
           fontFamily: typography.brandFamily, fontSize: 9, fontWeight: 400,
           color: colors.outline, letterSpacing: '2.5px', textTransform: 'uppercase',
@@ -115,14 +111,7 @@ export default function Layout({ children }) {
             alt="Meitech"
             style={{ width: 64, height: 'auto', marginBottom: 2 }}
           />
-          <div style={{
-            fontFamily: typography.brandFamily,
-            fontSize: 16, fontWeight: 700,
-            letterSpacing: '-0.5px',
-            color: '#fff', lineHeight: 1,
-          }}>
-            ME2
-          </div>
+          <ME2LogoCompact size={16} />
         </div>
 
         {/* Nav items */}
