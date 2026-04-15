@@ -354,13 +354,24 @@ Full spec in `docs/gvl-standard.md`. The PLC code template is in `docs/plc-templ
 
 Material Design 3 + Meitech visual identity. Token file: `web/src/styles/theme.js`.
 
+**Brand assets** (in `web/public/brand/`):
+- `logo-white.svg` — Meitech logo (white, for dark backgrounds like Nav Rail)
+- `circle.svg` — animated Meitech spinning circle (used in footer/loading)
+- `fonts/amina-regular.woff2` + `amina-bold.woff2` — Amina, Meitech official typeface
+
+**Typography:** System font `'Segoe UI', Roboto, Arial` for body. `'Amina', sans-serif` (`typography.brandFamily`) for brand text (logo, footer, headings). `@font-face` declarations in `web/src/styles/global.css`.
+
+**Nav Rail:** 88px fixed sidebar in Meitech blue (`#0040f0`). White logo + "ME2" in Amina. Pill-shaped active indicators with `rgba(255,255,255,0.22)`. Same pattern as RADAR v9.
+
+**Footer:** `ME2Footer` component with dual `SpinCircle` animation flanking "ME2 / Keep Moving" in Amina font. Animation keyframe `meiSpin` for continuous rotation.
+
 **Colors:**
-- Primary: `#0066CC` (Meitech blue)
-- Secondary: `#00A878` (operational green — "Keep Moving")
-- Error: `#D32F2F` (critical stop)
+- Primary: `#0066CC`
+- Meitech brand: `#0040f0` (Nav Rail, logo circle, buttons)
+- Error: `#BA1A1A` (critical stop)
 - Warning: `#F57C00` (attention / setup)
 - Success: `#388E3C` (uptime / running)
-- Background: `#EEF1F8`
+- Background: `#F0F2F8`
 
 **Status → color mapping:**
 
