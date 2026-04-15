@@ -54,17 +54,25 @@ export default function OEEAnalytics() {
     return Object.values(map)
   })()
 
-  // Aggregate OEE from hourly snapshots (oee is an array)
-  const agg = Array.isArray(oee) && oee.length > 0
-    ? {
-        availability_pct: oee.reduce((s, h) => s + h.availability_pct, 0) / oee.length,
-        performance_pct: oee.reduce((s, h) => s + h.performance_pct, 0) / oee.length,
-        quality_pct: oee.reduce((s, h) => s + h.quality_pct, 0) / oee.length,
-        parts_good: oee.reduce((s, h) => s + h.parts_good, 0),
-        downtime_min: oee.reduce((s, h) => s + h.downtime_min, 0),
-        planned_min: oee.reduce((s, h) => s + h.planned_min, 0),
-      }
-    : oee
+  // Aggregate OEE from hourly snapshots — recalculate from totals (E2 formula)
+  const agg = (() => {
+    if (!Array.isArray(oee) || oee.length === 0) return oee
+    const totalParts = oee.reduce((s, h) => s + (h.parts_good ?? 0), 0)
+    const totalDowntime = oee.reduce((s, h) => s + (h.downtime_min ?? 0), 0)
+    const totalPlanned = oee.reduce((s, h) => s + (h.planned_min ?? 0), 0)
+    const availPct = totalPlanned > 0 ? (totalPlanned - totalDowntime) / totalPlanned : 0
+    const cycleTime = currentEquipment?.standard_cycle_time_s ?? 0
+    const maxPossible = cycleTime > 0 ? (totalPlanned * 60) / cycleTime : 0
+    const perfPct = maxPossible > 0 ? totalParts / maxPossible : 0
+    return {
+      availability_pct: Math.min(availPct, 1),
+      performance_pct: Math.min(perfPct, 1),
+      quality_pct: 1.0,
+      parts_good: totalParts,
+      downtime_min: totalDowntime,
+      planned_min: totalPlanned,
+    }
+  })()
 
   const availability = agg?.availability_pct ?? 0
   const performance = agg?.performance_pct ?? 0

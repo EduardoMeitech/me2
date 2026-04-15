@@ -36,11 +36,12 @@ logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Shift definitions (fallback when DB shifts are unavailable)
+# Times are in LOCAL BRT. UTC equivalents (+3h) used for DB queries.
 # ---------------------------------------------------------------------------
 SHIFT_DEFS: dict[str, dict] = {
-    "T100": {"start": time(5, 0), "end": time(13, 29), "planned_min": 509.0},
-    "T200": {"start": time(13, 30), "end": time(21, 59), "planned_min": 509.0},
-    "T300": {"start": time(22, 0), "end": time(4, 59), "planned_min": 420.0},
+    "T100": {"start_utc": time(8, 0), "end_utc": time(16, 29), "planned_min": 509.0},
+    "T200": {"start_utc": time(16, 30), "end_utc": time(23, 59), "planned_min": 509.0},
+    "T300": {"start_utc": time(1, 0), "end_utc": time(7, 59), "planned_min": 420.0},
 }
 
 # word_status values that count as uptime (producing)
@@ -64,39 +65,37 @@ def _shift_range(dt_date: date, shift_name: str) -> tuple[datetime, datetime]:
     defn = SHIFT_DEFS.get(shift_name)
     if defn is None:
         raise ValueError(f"Unknown shift: {shift_name}")
-    start_dt = datetime.combine(dt_date, defn["start"], tzinfo=timezone.utc)
-    if defn["end"] < defn["start"]:
-        # Overnight shift — end is the next calendar day
-        end_dt = datetime.combine(dt_date + timedelta(days=1), defn["end"], tzinfo=timezone.utc)
-    else:
-        end_dt = datetime.combine(dt_date, defn["end"], tzinfo=timezone.utc)
-    # Add 1 minute to include the final minute boundary (e.g. 13:29:59)
+    start_dt = datetime.combine(dt_date, defn["start_utc"], tzinfo=timezone.utc)
+    end_dt = datetime.combine(dt_date, defn["end_utc"], tzinfo=timezone.utc)
+    # Add 1 minute to include the final minute boundary
     end_dt = end_dt + timedelta(minutes=1)
+    # Handle overnight (T300: end_utc < start_utc)
+    if end_dt <= start_dt:
+        end_dt += timedelta(days=1)
     return start_dt, end_dt
 
 
 def _shift_for_hour(dt_date: date, hour: int) -> tuple[str, str | None]:
-    """Determine which shift a given hour belongs to.
+    """Determine which shift a given UTC hour belongs to.
 
     Returns (shift_name, None) — the second element is reserved for shift_id
     which callers resolve from the DB.
     """
     t = time(hour, 0)
     for name, defn in SHIFT_DEFS.items():
-        s, e = defn["start"], defn["end"]
+        s, e = defn["start_utc"], defn["end_utc"]
         if e < s:
-            # Overnight shift
+            # Overnight shift (T300)
             if t >= s or t <= e:
                 return name, None
         else:
             if s <= t <= e:
                 return name, None
-    # Default to T100 if nothing matches (shouldn't happen for 0-23)
     return "T100", None
 
 
 def _planned_min_for_hour(dt_date: date, hour: int) -> float:
-    """How many planned minutes fall within a single clock hour.
+    """How many planned minutes fall within a single UTC clock hour.
 
     For most hours inside a shift this is 60 min.  For boundary hours
     (the first / last hour of a shift), we prorate.
@@ -105,7 +104,10 @@ def _planned_min_for_hour(dt_date: date, hour: int) -> float:
     hour_end = hour_start + timedelta(hours=1)
 
     shift_name, _ = _shift_for_hour(dt_date, hour)
-    shift_start, shift_end = _shift_range(dt_date, shift_name)
+    try:
+        shift_start, shift_end = _shift_range(dt_date, shift_name)
+    except ValueError:
+        return 0.0
 
     overlap_start = max(hour_start, shift_start)
     overlap_end = min(hour_end, shift_end)
@@ -489,26 +491,27 @@ class OEECalculator:
 
                     now = datetime.now(timezone.utc)
                     current_date = now.date()
-                    current_hour = now.hour
 
                     logger.info(
-                        "OEE periodic run: %d active equipment, date=%s hour=%02d",
+                        "OEE periodic run: %d active equipment, date=%s",
                         len(equipment_ids),
                         current_date,
-                        current_hour,
                     )
 
+                    # Recalculate ALL hours of today that have data
                     for eq_id in equipment_ids:
-                        try:
-                            await self.calculate_hourly(
-                                db, eq_id, current_date, current_hour
-                            )
-                        except Exception:
-                            logger.exception(
-                                "OEE calc failed for equipment=%s hour=%02d",
-                                eq_id,
-                                current_hour,
-                            )
+                        for hour in range(24):
+                            try:
+                                await self.calculate_hourly(
+                                    db, eq_id, current_date, hour
+                                )
+                            except Exception:
+                                logger.exception(
+                                    "OEE calc failed for equipment=%s date=%s hour=%02d",
+                                    eq_id,
+                                    current_date,
+                                    hour,
+                                )
 
             except Exception:
                 logger.exception("OEE periodic cycle failed")
