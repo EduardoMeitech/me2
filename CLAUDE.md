@@ -153,18 +153,20 @@ me2/
 │   ├── src/
 │   │   ├── styles/theme.js       # MD3 tokens Meitech (cores, tipografia, shape)
 │   │   ├── components/
+│   │   │   ├── ME2Logo.jsx       # Animated logo (2 flips to S → ME2/MES), Baloo 2 font
 │   │   │   ├── MachineCard.jsx   # Card status + OEE badge + sparkline
-│   │   │   ├── OEEGauge.jsx      # Gauge circular com 3 arcos
+│   │   │   ├── OEEGauge.jsx      # Gauge circular com 3 arcos (configurable size/compact)
 │   │   │   ├── StatusTimeline.jsx# Barra de estados colorida (tipo Gantt)
+│   │   │   ├── StatusPareto.jsx  # Horizontal bars — accumulated status distribution
 │   │   │   ├── ProductionBar.jsx # Barras por hora + linha de meta
 │   │   │   ├── AlertBanner.jsx   # Banner persistente para parada ativa
 │   │   │   ├── ShiftSelector.jsx # Toggle T1/T2/T3
 │   │   │   ├── Button.jsx        # MD3 Button (filled/outlined/text/tonal)
 │   │   │   ├── Card.jsx          # MD3 Card
-│   │   │   └── Layout.jsx        # Nav Rail (desktop) + Bottom Nav (mobile)
+│   │   │   └── Layout.jsx        # Nav Rail (Meitech blue) + SpinCircle footer
 │   │   ├── views/
 │   │   │   ├── LiveMonitor.jsx   # Grid de máquinas em tempo real
-│   │   │   ├── OEEAnalytics.jsx  # OEE histórico com filtros
+│   │   │   ├── OEEAnalytics.jsx  # OEE dashboard (E2-inspired layout)
 │   │   │   ├── Alerts.jsx        # Alertas ativos e histórico
 │   │   │   └── Reports.jsx       # Relatório de turno / diário
 │   │   ├── hooks/
@@ -359,11 +361,19 @@ Material Design 3 + Meitech visual identity. Token file: `web/src/styles/theme.j
 - `circle.svg` — animated Meitech spinning circle (used in footer/loading)
 - `fonts/amina-regular.woff2` + `amina-bold.woff2` — Amina, Meitech official typeface
 
-**Typography:** System font `'Segoe UI', Roboto, Arial` for body. `'Amina', sans-serif` (`typography.brandFamily`) for brand text (logo, footer, headings). `@font-face` declarations in `web/src/styles/global.css`.
+**Typography:** System font `'Segoe UI', Roboto, Arial` for body. `'Amina', sans-serif` (`typography.brandFamily`) for brand text (footer, headings). `'Baloo 2'` (Google Fonts, weight 800) for the ME2 logo. `@font-face` declarations in `web/src/styles/global.css`.
 
-**Nav Rail:** 88px fixed sidebar in Meitech blue (`#0040f0`). White logo + "ME2" in Amina. Pill-shaped active indicators with `rgba(255,255,255,0.22)`. Same pattern as RADAR v9.
+**ME2 Logo (`ME2Logo.jsx`):** The "2" in ME2 flips on the Y-axis (3D rotation) and swaps to "S" at the midpoint, creating a visual allusion ME2 ↔ MES. Font: Baloo 2 (rounded "2" resembles "S"). Animation only on Nav Rail; Login and Footer use `ME2LogoStatic`. Cycle: 3s as "2", flip 600ms, show "S" 800ms, flip back.
 
-**Footer:** `ME2Footer` component with dual `SpinCircle` animation flanking "ME2 / Keep Moving" in Amina font. Animation keyframe `meiSpin` for continuous rotation.
+**Nav Rail:** 88px fixed sidebar in Meitech blue (`#0040f0`). White Meitech logo SVG + animated ME2Logo (34px, Baloo 2). Pill-shaped active indicators with `rgba(255,255,255,0.22)`. Same pattern as RADAR v9.
+
+**Footer:** `ME2Footer` component with dual `SpinCircle` animation flanking static "ME2 / Keep Moving" (Amina + Baloo 2). Animation keyframe `meiSpin` for continuous rotation.
+
+**OEE Analytics layout** (E2-inspired):
+- Two aligned header cards (shared 30px title row + KPI row): Equipment info (left) + OEE Deployment with gauge circle (right)
+- OEE gauge colors: green (Availability), blue (Performance), gray (Quality), value centered
+- Production bar chart + Status Pareto (horizontal bars as color legend)
+- Status Timeline (full width, colored segments)
 
 **Colors:**
 - Primary: `#0066CC`
