@@ -144,13 +144,16 @@ async def equipment_status(
     )
     rows = result.scalars().all()
 
-    # Calculate duration for each status event
+    # Calculate duration for each status event.
+    # Last event: cap at shift/day end or now (whichever is earlier) to avoid
+    # inflating durations when viewing historical data.
+    cap = min(day_end, datetime.now(timezone.utc))
     events = []
     for i, row in enumerate(rows):
         if i + 1 < len(rows):
             duration = (rows[i + 1].ts - row.ts).total_seconds() / 60.0
         else:
-            duration = (datetime.now(timezone.utc) - row.ts).total_seconds() / 60.0
+            duration = max((cap - row.ts).total_seconds() / 60.0, 0)
 
         events.append(
             StatusEventResponse(

@@ -77,9 +77,7 @@ export default function ProductionBar({ data = [], targetPerHour = 0, startTime 
                     ? 'transparent'
                     : targetPerHour > 0 && entry.parts_ok >= targetPerHour
                     ? colors.success
-                    : targetPerHour > 0 && entry.parts_ok >= targetPerHour * 0.7
-                    ? colors.warning
-                    : colors.success
+                    : colors.warning
                 }
               />
             ))}

@@ -28,17 +28,17 @@ const PLANT_NAME = 'Meitech Sede — Linha Frango'
 
 // Map StationSAP → ME2 equipment
 const EQUIPMENT_MAP = {
-  '28321': { serial: 'MEI-2024-28321', name: 'Desossadora 01',      model: 'M241',  manufacturer: 'Schneider Electric', cycleTime: 8.5 },
-  '28322': { serial: 'MEI-2024-28322', name: 'Desossadora 02',      model: 'M241',  manufacturer: 'Schneider Electric', cycleTime: 8.5 },
-  '29072': { serial: 'MEI-2024-29072', name: 'Transportadora 01',   model: 'M340',  manufacturer: 'Schneider Electric', cycleTime: 1.6 },
-  '29073': { serial: 'MEI-2024-29073', name: 'Transportadora 02',   model: 'M340',  manufacturer: 'Schneider Electric', cycleTime: 3.2 },
-  '29075': { serial: 'MEI-2024-29075', name: 'Balança Aérea 01',    model: 'S7-1200', manufacturer: 'Siemens',          cycleTime: 3.6 },
-  '29076': { serial: 'MEI-2024-29076', name: 'Balança Aérea 02',    model: 'S7-1200', manufacturer: 'Siemens',          cycleTime: 5.9 },
-  '29078': { serial: 'MEI-2024-29078', name: 'Transferidora 01',    model: 'M251',  manufacturer: 'Schneider Electric', cycleTime: 1.8 },
-  '29657': { serial: 'MEI-2024-29657', name: 'Embaladora 01',       model: 'M241',  manufacturer: 'Schneider Electric', cycleTime: 2.3 },
-  '34513': { serial: 'MEI-2024-34513', name: 'Classificadora 01',   model: 'M580',  manufacturer: 'Schneider Electric', cycleTime: 2.0 },
-  '34514': { serial: 'MEI-2024-34514', name: 'Classificadora 02',   model: 'M580',  manufacturer: 'Schneider Electric', cycleTime: 1.3 },
-  '9999':  { serial: 'MEI-2024-09999', name: 'Escaldadeira 01',     model: 'M221',  manufacturer: 'Schneider Electric', cycleTime: 1.8 },
+  '28321': { serial: 'MEI-2024-28321', name: 'Desossadora 01',      model: 'M241',  manufacturer: 'Schneider Electric', cycleTime: 8.8 },
+  '28322': { serial: 'MEI-2024-28322', name: 'Desossadora 02',      model: 'M241',  manufacturer: 'Schneider Electric', cycleTime: 8.7 },
+  '29072': { serial: 'MEI-2024-29072', name: 'Transportadora 01',   model: 'M340',  manufacturer: 'Schneider Electric', cycleTime: 7.8 },
+  '29073': { serial: 'MEI-2024-29073', name: 'Transportadora 02',   model: 'M340',  manufacturer: 'Schneider Electric', cycleTime: 8.8 },
+  '29075': { serial: 'MEI-2024-29075', name: 'Balança Aérea 01',    model: 'S7-1200', manufacturer: 'Siemens',          cycleTime: 31.6 },
+  '29076': { serial: 'MEI-2024-29076', name: 'Balança Aérea 02',    model: 'S7-1200', manufacturer: 'Siemens',          cycleTime: 8.2 },
+  '29078': { serial: 'MEI-2024-29078', name: 'Transferidora 01',    model: 'M251',  manufacturer: 'Schneider Electric', cycleTime: 17.5 },
+  '29657': { serial: 'MEI-2024-29657', name: 'Embaladora 01',       model: 'M241',  manufacturer: 'Schneider Electric', cycleTime: 7.7 },
+  '34513': { serial: 'MEI-2024-34513', name: 'Classificadora 01',   model: 'M580',  manufacturer: 'Schneider Electric', cycleTime: 7.7 },
+  '34514': { serial: 'MEI-2024-34514', name: 'Classificadora 02',   model: 'M580',  manufacturer: 'Schneider Electric', cycleTime: 7.7 },
+  '9999':  { serial: 'MEI-2024-09999', name: 'Escaldadeira 01',     model: 'M221',  manufacturer: 'Schneider Electric', cycleTime: 8.2 },
 }
 
 // Product number mapping (E2 codes → ME2-friendly names)

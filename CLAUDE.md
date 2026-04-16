@@ -414,6 +414,10 @@ Material Design 3 + Meitech visual identity. Token file: `web/src/styles/theme.j
 - Status Pareto shows ALL 8 status types (even 0%) to fill the card height
 - All three data views (Production, StatusTimeline, StatusPareto) respond to shift filter via `GET /api/v1/equipment/{id}/status?date=&shift=`
 
+**IMPORTANT — Production bar colors:** Green = hour met or exceeded target (`3600 / standard_cycle_time_s`). Orange = hour below target. Target is P75 of real production data — set via `standard_cycle_time_s` in `me2_equipment`.
+
+**IMPORTANT — StatusTimeline vs StatusPareto consistency:** Both use the same `statusEvents` data with `duration_min` from the API. The StatusTimeline positions each segment by its **actual timestamp** within the shift (not concatenated), so visual proportions match the Pareto percentages. The status endpoint caps the last event's duration at `min(shift_end, now)` to avoid inflating historical data.
+
 **IMPORTANT — Shift time ranges (BRT → UTC):** Shifts are stored in local BRT but all DB queries and OEE calculations use UTC. The conversion is applied in `api/routers/equipment.py`, `api/routers/production.py`, and `api/services/oee_calculator.py`:
 - T100: 05:00-13:29 BRT = 08:00-16:29 UTC
 - T200: 13:30-21:59 BRT = 16:30-00:59 UTC  

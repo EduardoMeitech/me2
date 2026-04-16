@@ -1,9 +1,12 @@
 /**
  * StatusTimeline — Barra horizontal com segmentos coloridos por estado (tipo Gantt).
- * Accepts startTime/endTime as "HH:MM" strings to match shift boundaries.
+ * Each segment is positioned by its actual timestamp within the shift, so the
+ * visual proportions match the Accumulated Status (Pareto) percentages exactly.
  */
 
 import { colors, typography, getStatusColor, getStatusLabel } from '../styles/theme'
+
+const UTC_OFFSET = -3 // BRT
 
 function timeToMin(hhmm) {
   const [h, m] = hhmm.split(':').map(Number)
@@ -15,6 +18,15 @@ function formatHour(totalMin) {
   const m = totalMin % 60
   if (m === 0) return `${String(h).padStart(2, '0')}h`
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+/** Convert ISO timestamp to minutes-of-day in BRT. */
+function tsToLocalMin(isoStr) {
+  const d = new Date(isoStr)
+  // Convert UTC hours to BRT
+  let h = d.getUTCHours() + UTC_OFFSET
+  if (h < 0) h += 24
+  return h * 60 + d.getUTCMinutes() + d.getUTCSeconds() / 60
 }
 
 export default function StatusTimeline({ events = [], startTime = '05:00', endTime = '22:00' }) {
@@ -35,35 +47,51 @@ export default function StatusTimeline({ events = [], startTime = '05:00', endTi
     )
   }
 
+  // Build positioned segments: each event placed at its actual time within the shift
+  const segments = events.map((event) => {
+    let evMin = tsToLocalMin(event.ts)
+
+    // Adjust for overnight shifts (T300)
+    if (evMin < startMin && startMin >= 22 * 60) evMin += 24 * 60
+
+    const durationMin = event.duration_min ?? 0
+    const segStart = Math.max(evMin - startMin, 0)
+    const segEnd = Math.min(segStart + durationMin, totalMinutes)
+    const segDuration = Math.max(segEnd - segStart, 0)
+
+    return {
+      word_status: event.word_status,
+      leftPct: (segStart / totalMinutes) * 100,
+      widthPct: (segDuration / totalMinutes) * 100,
+      durationMin: segDuration,
+    }
+  }).filter(s => s.widthPct > 0.05) // Skip negligible segments
+
   return (
     <div>
-      {/* Timeline bar */}
+      {/* Timeline bar — positioned segments */}
       <div
         style={{
-          display: 'flex',
+          position: 'relative',
           height: 32,
           borderRadius: 4,
           overflow: 'hidden',
           background: colors.surfaceVariant,
         }}
       >
-        {events.map((event, i) => {
-          const durationMin = event.duration_min ?? 1
-          const widthPct = Math.max((durationMin / totalMinutes) * 100, 0.3)
-
-          return (
-            <div
-              key={i}
-              title={`${getStatusLabel(event.word_status)} — ${durationMin.toFixed(0)} min`}
-              style={{
-                width: `${widthPct}%`,
-                background: getStatusColor(event.word_status),
-                minWidth: 2,
-                transition: 'width 0.3s',
-              }}
-            />
-          )
-        })}
+        {segments.map((seg, i) => (
+          <div
+            key={i}
+            title={`${getStatusLabel(seg.word_status)} — ${seg.durationMin.toFixed(0)} min`}
+            style={{
+              position: 'absolute',
+              left: `${seg.leftPct}%`,
+              width: `${Math.max(seg.widthPct, 0.2)}%`,
+              height: '100%',
+              background: getStatusColor(seg.word_status),
+            }}
+          />
+        ))}
       </div>
 
       {/* Hour labels */}
@@ -73,8 +101,6 @@ export default function StatusTimeline({ events = [], startTime = '05:00', endTi
 }
 
 function HourLabels({ startMin, endMin }) {
-  // Match Recharts categorical distribution:
-  // N items spread evenly, each label at center of its slot = (i + 0.5) / N * 100%
   const firstHour = Math.floor(startMin / 60)
   const lastHour = Math.floor(endMin / 60)
   const hours = []
