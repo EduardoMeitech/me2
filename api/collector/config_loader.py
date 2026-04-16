@@ -164,6 +164,12 @@ class ConfigLoader:
             return
 
         protocol = eq.get("protocol", "modbus")
+
+        # HTTP / MCBT protocol — different variable format
+        if protocol == "http":
+            cls._normalize_http_variables(eq, raw_vars)
+            return
+
         vendor_key = "schneider" if protocol == "modbus" else "siemens"
 
         vendor_vars: dict[str, dict] = raw_vars.get(vendor_key, {})
@@ -220,6 +226,64 @@ class ConfigLoader:
 
             # Skip cycle_time and product_no from the polling list — the
             # collector reads them inline when it encounters parts_ok.
+            if var_name in ("cycle_time", "product_no"):
+                continue
+
+            flat.append({
+                "name": var_name,
+                "address": addr,
+                "role": role,
+            })
+
+        eq["variables"] = flat
+        eq["cycle_time_var"] = cycle_time_addr
+        eq["product_no_var"] = product_no_addr
+
+    # ------------------------------------------------------------------
+    # HTTP / MCBT variable normalisation
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def _normalize_http_variables(cls, eq: dict, raw_vars: dict) -> None:
+        """Normalize MCBT HTTP variables into the standard flat list format.
+
+        MCBT variables use ``{"source": "derived", "derivation": "..."}``
+        or ``{"source": "dashboard", "field": "..."}`` address dicts.
+        """
+        mcbt_vars: dict[str, dict] = raw_vars.get("mcbt", {})
+        if not mcbt_vars:
+            logger.warning(
+                "Equipment '%s': no variables under key 'mcbt'",
+                eq.get("serial_number", "?"),
+            )
+            eq["variables"] = []
+            eq["cycle_time_var"] = None
+            eq["product_no_var"] = None
+            return
+
+        flat: list[dict[str, Any]] = []
+        cycle_time_addr: dict | None = None
+        product_no_addr: dict | None = None
+
+        for var_name, var_def in mcbt_vars.items():
+            role = var_name if var_name in cls._KNOWN_ROLES else "process"
+
+            # Build the address dict — HTTP uses source/derivation/field
+            addr: dict[str, Any] = {
+                "source": var_def.get("source", "derived"),
+            }
+            if "derivation" in var_def:
+                addr["derivation"] = var_def["derivation"]
+            if "field" in var_def:
+                addr["field"] = var_def["field"]
+
+            # Stash direct-access addresses for cycle_time / product_no
+            if var_name == "cycle_time":
+                cycle_time_addr = addr
+            elif var_name == "product_no":
+                product_no_addr = addr
+
+            # Skip cycle_time and product_no from polling list
             if var_name in ("cycle_time", "product_no"):
                 continue
 

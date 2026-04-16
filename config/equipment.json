@@ -132,6 +132,84 @@
     }
   ],
 
+  "_mcbt_example": "INACTIVE — MCBT 2.0 (Multicabeçote) example. To use: copy _mcbt_equipment into the equipment array, set active to true, adjust host, and set MCBT password env var.",
+  "_mcbt_equipment": {
+    "serial_number": "MEI-2024-0100",
+    "serial_number_source": "fixed",
+    "name": "Checkweigher Dinamico CWD-01",
+    "description": "Multicabeçote MCBT 2.0 — classificadora/pesadora dinâmica",
+    "model": "MCBT 2.0",
+    "manufacturer": "Meitech",
+    "plant": "Meitech Sede",
+    "active": false,
+
+    "protocol": "http",
+    "connection": {
+      "host": "192.168.1.230",
+      "http_port": 8080,
+      "ws_port": 9000,
+      "ws_protocol": "mcbt-protocol",
+      "timeout_s": 10,
+      "auth": {
+        "endpoint": "/usr/login",
+        "user": "meitech",
+        "password": "${MCBT_PASSWORD_MEI_2024_0100}"
+      }
+    },
+
+    "poll_interval_s": 60.0,
+
+    "variables": {
+      "mcbt": {
+        "word_status": {
+          "source": "derived",
+          "derivation": "word_status",
+          "description": "Derived from isRunning + isInError + packageMachineStatus.state"
+        },
+        "parts_ok": {
+          "source": "derived",
+          "derivation": "parts_ok",
+          "description": "Cumulative count from /history/lastPackages"
+        },
+        "cycle_time": {
+          "source": "derived",
+          "derivation": "cycle_time",
+          "description": "Average delta between consecutive package timestamps"
+        },
+        "product_no": {
+          "source": "derived",
+          "derivation": "product_no",
+          "description": "Active recipe name from /recipe/getActiveRecipe"
+        },
+        "cpu_temp": {
+          "source": "dashboard",
+          "field": "systemInfo.cpuTemp",
+          "description": "Toradex CPU temperature"
+        },
+        "cpu_usage": {
+          "source": "dashboard",
+          "field": "systemInfo.cpuUsage",
+          "description": "Toradex CPU usage percentage"
+        }
+      }
+    },
+
+    "alerts": {
+      "uptime_status_code": 18,
+      "downtime_l1_min": 5,
+      "downtime_l2_min": 15,
+      "notify_l1": "operations",
+      "notify_l2": "management"
+    },
+
+    "mcbt_specific": {
+      "firmware_version_expected": "250815",
+      "module_count": 16,
+      "feeder_type": 0,
+      "selector_funnel_type": 0
+    }
+  },
+
   "_siemens_example": "INACTIVE — Siemens S7-1200 example. To use: copy _siemens_equipment into the equipment array, set active to true, and adjust connection parameters.",
   "_siemens_equipment": {
     "serial_number": "MEI-2024-0099",

@@ -119,6 +119,7 @@ me2/
 │   │   │   ├── snap7_driver.py   # Siemens S7 via python-snap7
 │   │   │   ├── modbus_driver.py  # Schneider via pymodbus
 │   │   │   ├── opcua_driver.py   # Toradex/CODESYS + M580 via asyncua
+│   │   │   ├── http_driver.py    # MCBT 2.0 via HTTP REST (httpx)
 │   │   │   └── factory.py        # create_driver(config) — registry
 │   │   ├── config_loader.py      # Lê equipment.json (local ou API)
 │   │   ├── data_processor.py     # Detecta mudanças, corrige overflow, persiste
@@ -140,7 +141,8 @@ me2/
 │   │   ├── reports.py            # GET /api/v1/reports/shift, /reports/daily
 │   │   └── live.py               # WS /ws/live
 │   ├── services/
-│   │   └── oee_calculator.py     # OEE calculation (hourly + shift, runs every 5min)
+│   │   ├── oee_calculator.py     # OEE calculation (hourly + shift, runs every 5min)
+│   │   └── email_service.py      # SMTP email alerts (aiosmtplib)
 │   ├── ml/                       # ML Engine (Fase 2 — não implementar na POC)
 │   ├── db/
 │   │   └── init.sql              # Extensões PostgreSQL (uuid-ossp, etc.)
@@ -185,7 +187,8 @@ me2/
 │   └── certs/                    # SSL (não commitar)
 ├── docs/
 │   ├── architecture.md
-│   └── gvl-standard.md           # Padrão GVL_ME2 para o time de automação
+│   ├── gvl-standard.md           # Padrão GVL_ME2 para o time de automação
+│   └── INTEGRATION_ME2.md        # Integração MCBT 2.0 → ME2 (spec completa)
 ├── scripts/
 │   ├── seed_demo.py              # Dados sintéticos para demo
 │   └── simulator.py              # PLC simulator (generates data without real PLC)
@@ -323,7 +326,7 @@ L1 threshold → notifies operational team. L2 threshold → escalates to manage
 
 ## Hardware Context
 
-The ME2 collector handles 3 PLC families — one driver per family, same `BaseDriver` interface:
+The ME2 collector handles 4 equipment families — one driver per family, same `BaseDriver` interface:
 
 | Hardware | Protocol | Driver | Key detail |
 |----------|----------|--------|------------|
@@ -331,12 +334,37 @@ The ME2 collector handles 3 PLC families — one driver per family, same `BaseDr
 | Schneider M221/M241/M251/M340 | Modbus TCP port 502 | `ModbusDriver` | unit_id=1, Holdings at %MW |
 | Schneider M580 | Modbus TCP + OPC-UA | `ModbusDriver` (POC) | OPC-UA later |
 | Toradex + CODESYS | OPC-UA port 4840 | `OpcUaDriver` | in development |
+| **MCBT 2.0 (Multicabeçote)** | **HTTP REST + WebSocket** | **`HttpDriver`** | **Toradex iMX8, C++17, ports 8080/9000** |
+
+**Network / VPN:** All Meitech machines in the field have **Weidmüller VPN routers** (u-link). The collector connects to PLCs via Modbus TCP through the Weidmüller VPN tunnel — not direct LAN. This means higher latency and intermittent drops are expected. The SQLite buffer (offline-first) and automatic reconnect in the collector exist specifically because of this. Never assume a stable, low-latency connection to PLCs.
 
 **Modbus float:** REALs occupy 2 consecutive holding registers, big-endian. Read 2 registers, `struct.pack('>HH', r[0], r[1])` → `struct.unpack('>f', ...)`.
 
 **Modbus string:** Each holding register holds 2 ASCII chars. `sSerialNumber` (20 chars) = 10 registers starting at the configured address.
 
 **OPC-UA NodeIDs** follow CODESYS convention: `ns=4;s=Application.GVL_ME2.<VariableName>`.
+
+### MCBT 2.0 (Multicabeçote / Dynamic Checkweigher)
+
+The MCBT is a **classificadora/pesadora dinâmica** that combines weights from N modules to form packages. Runs on **Toradex Verdin iMX8 Plus** with C++17 firmware, NOT a traditional PLC. Unlike other Meitech machines, the MCBT exposes its own HTTP REST + WebSocket APIs — the ME2 collector acts as a **client**, not a Modbus master.
+
+- **HTTP REST** (Pistache, port `8080`) — production data, parameters, active recipe, operational data
+- **WebSocket** (libwebsockets, port `9000`, protocol `mcbt-protocol`) — state broadcast at 20 Hz
+- **SQLite local** at `/home/torizon/data/database_mcbt.db` — on-device history
+
+**CRITICAL — `protocol: "http"`** in equipment.json triggers the `HttpDriver`. This is a new driver class (see `docs/INTEGRATION_ME2.md` for full spec).
+
+**CRITICAL — `serial_number_source: "fixed"`** — the MCBT firmware does NOT store serial_number. It comes from equipment.json, not the machine.
+
+**CRITICAL — `word_status` is DERIVED**, not read directly. The `HttpDriver` maps from `isRunning`, `isInError`, `packageMachineStatus.state` → ME2 word_status codes (18=Uptime, 32=Failure, etc.).
+
+**CRITICAL — `GET /errors` is DESTRUCTIVE** — clears the error buffer on read. Only ONE consumer per machine. Never call from multiple instances.
+
+**CRITICAL — MCBT timestamps are UTC-3 hardcoded** — always convert to UTC before inserting into PostgreSQL.
+
+**CRITICAL — Do NOT call write endpoints** (`POST /writeReg`, `/writeBit`, `/system/shutdown`, etc.) from ME2. Only the local MCBT UI or Meitech support should operate the machine.
+
+Full integration spec: `docs/INTEGRATION_ME2.md`.
 
 ## GVL_ME2 Standard (PLC side)
 
@@ -428,21 +456,26 @@ The POC targets exactly: **1 Schneider equipment via VPN, Modbus TCP, live statu
 Success criteria:
 1. A manager opens the dashboard on mobile and sees the machine in real time — **DONE (Sprint 0-2)**
 2. A second equipment is added by editing only `equipment.json` — no code change — **DONE (config-driven)**
-3. Email alert fires when machine is stopped for more than L1 threshold — **PARTIAL (alert engine exists, email placeholder)**
+3. Email alert fires when machine is stopped for more than L1 threshold — **DONE (SMTP via aiosmtplib, configurable)**
 
 What has been completed:
 - Full data pipeline: PLC Collector → SQLite → PostgreSQL → WebSocket → Dashboard
 - PLC Simulator for testing without real hardware
 - OEE automatic calculation (hourly, per equipment)
 - JWT authentication + login flow
-- Live Monitor, OEE Analytics, Alerts, Reports views
+- Live Monitor (WebSocket merge, status summary pills, last-update indicator)
+- OEE Analytics (E2-inspired layout, shift filters, responsive)
+- Alerts view (summary cards, active + history, equipment name, acknowledge)
+- Reports view (OEE gauge, E2-formula recalculation, status breakdown)
 - Config-driven equipment registration (equipment.json)
-- Modbus, Snap7, OPC-UA driver framework
+- Modbus, Snap7, OPC-UA, **HTTP (MCBT 2.0)** driver framework
+- Email alerts via SMTP (L1/L2 with HTML templates, resolution notifications)
+- Mobile responsive layout (bottom nav on <768px)
+- Backend test suite (alert engine, API endpoints, email service, HttpDriver)
 
 What is explicitly **OUT OF SCOPE** for the POC:
 - MQTT / cloud communication
 - Multi-tenant
-- OPC-UA / Toradex integration
 - ML engine
 - User registration / admin panel
 - Production deployment with SSL

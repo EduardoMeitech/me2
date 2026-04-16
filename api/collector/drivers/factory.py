@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from .modbus_driver import ModbusDriver
 from .snap7_driver import Snap7Driver
 from .opcua_driver import OpcUaDriver
+from .http_driver import HttpDriver
 
 if TYPE_CHECKING:
     from .base import BaseDriver
@@ -18,6 +19,7 @@ _PROTOCOL_MAP: dict[str, type] = {
     "modbus": ModbusDriver,
     "s7": Snap7Driver,
     "opcua": OpcUaDriver,
+    "http": HttpDriver,
 }
 
 
@@ -65,6 +67,6 @@ def create_driver(config: dict) -> BaseDriver:
         protocol,
         name,
         connection.get("host"),
-        connection.get("port", "(default)"),
+        connection.get("port", connection.get("http_port", "(default)")),
     )
     return driver_cls(**kwargs)
