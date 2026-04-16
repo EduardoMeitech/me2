@@ -68,12 +68,14 @@ async def get_production(
             if day_end <= day_start:
                 day_end += timedelta(days=1)
 
-    # Query hourly aggregation
+    # Query hourly aggregation — each production_event row represents one
+    # trigger-on-change (≈ 1 part produced). COUNT(*) is robust against
+    # counter resets at shift boundaries. Same strategy as oee_calculator.
     hour_extract = func.date_trunc("hour", ProductionEvent.ts)
     stmt = (
         select(
             hour_extract.label("hour_bucket"),
-            func.sum(ProductionEvent.parts_ok).label("total_parts"),
+            func.count(ProductionEvent.id).label("parts_count"),
             func.max(ProductionEvent.product_no).label("product_no"),
         )
         .where(
@@ -91,7 +93,7 @@ async def get_production(
     data = [
         ProductionHourResponse(
             hour=row.hour_bucket.strftime("%H:%M") if row.hour_bucket else "00:00",
-            parts_ok=int(row.total_parts) if row.total_parts else 0,
+            parts_ok=int(row.parts_count) if row.parts_count else 0,
             product_no=row.product_no,
         ).model_dump()
         for row in rows

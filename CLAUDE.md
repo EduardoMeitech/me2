@@ -50,6 +50,9 @@ python scripts/simulator.py
 - `cd web && npm run lint` — ESLint
 - `python scripts/simulator.py` — PLC simulator (writes to collector SQLite)
 - `python scripts/seed_demo.py` — seed demo data into PostgreSQL
+- `node scripts/seed_from_bigquery.js > scripts/seed_bigquery.sql` — generate seed SQL from BigQuery E2 exports (11 machines, 170k events)
+- `psql -U me2 -d me2 -f scripts/seed_bigquery.sql` — import generated seed data
+- `PYTHONPATH=. python scripts/backfill_oee.py --days 5` — backfill OEE snapshots for past dates
 
 ### Default credentials
 
@@ -191,6 +194,8 @@ me2/
 │   └── INTEGRATION_ME2.md        # Integração MCBT 2.0 → ME2 (spec completa)
 ├── scripts/
 │   ├── seed_demo.py              # Dados sintéticos para demo
+│   ├── seed_from_bigquery.js     # Gera SQL de seed a partir de exports BigQuery/E2
+│   ├── backfill_oee.py           # Recalcula OEE snapshots para datas passadas
 │   └── simulator.py              # PLC simulator (generates data without real PLC)
 ├── docker-compose.yml
 ├── .env.example                  # Copiar para .env — nunca commitar .env
@@ -297,6 +302,8 @@ Configured per-variable in JSON: `"overflow_fix": true`. The `DataProcessor` app
 ### Trigger on change
 
 Data is only persisted when a value actually changes (or at shift boundary). This is the core efficiency principle inherited from E2 Collector. `DataProcessor` holds `_last_parts_ok` and `_last_word_status` dicts keyed by `equipment_id`.
+
+**IMPORTANT — Hourly production aggregation:** Because `parts_ok` is a cumulative counter that resets at shift boundaries, hourly production = `COUNT(events)` per hour (each event ≈ 1 part produced). Never use `SUM(parts_ok)` — that sums the running totals and gives absurd numbers. The OEE calculator, production endpoint, and reports endpoint all use `COUNT`.
 
 ### Shifts (Meitech standard)
 

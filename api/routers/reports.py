@@ -76,8 +76,10 @@ async def shift_report(
     shift_start, shift_end, planned_min = _resolve_shift_range(parsed_date, shift)
 
     # --- Total parts produced during the shift ---
+    # Each production_event row = 1 trigger-on-change ≈ 1 part produced.
+    # COUNT is robust against counter resets at shift boundaries.
     parts_result = await db.execute(
-        select(func.coalesce(func.sum(ProductionEvent.parts_ok), 0)).where(
+        select(func.count(ProductionEvent.id)).where(
             ProductionEvent.equipment_id == equipment_id,
             ProductionEvent.ts >= shift_start,
             ProductionEvent.ts < shift_end,
