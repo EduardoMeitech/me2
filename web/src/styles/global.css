@@ -69,3 +69,37 @@ button:focus:not(:focus-visible) { outline: none; }
 .status-pulse {
   animation: pulse 2s ease-in-out infinite;
 }
+
+/* ─── Responsive: Nav Rail → Bottom Nav ─── */
+@media (max-width: 768px) {
+  .me2-nav-rail {
+    display: none !important;
+  }
+
+  .me2-bottom-nav {
+    display: flex !important;
+  }
+
+  .me2-main-content {
+    margin-left: 0 !important;
+    padding: 16px !important;
+    padding-bottom: 80px !important;
+    max-height: none !important;
+  }
+
+  /* OEE Analytics: stack the fixed grid */
+  .me2-oee-grid-detail {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto !important;
+  }
+
+  .me2-oee-grid-detail > * {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+  }
+
+  /* Reports / OEE header cards */
+  .me2-grid-auto-fit {
+    grid-template-columns: 1fr !important;
+  }
+}

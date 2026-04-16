@@ -164,7 +164,7 @@ export default function OEEAnalytics() {
           </div>
 
           {/* ── Rows 2-3 grid: fixed heights so layout never changes between shifts ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gridTemplateRows: '330px 100px', gap: 16 }}>
+          <div className="me2-oee-grid-detail" style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gridTemplateRows: '330px 100px', gap: 16 }}>
             {/* Top-left: Production chart */}
             <Card style={{ gridColumn: 1, gridRow: 1, overflow: 'hidden' }}>
               <ProductionBar

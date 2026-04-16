@@ -35,7 +35,10 @@ export const useEquipmentStore = create((set) => ({
 
   updateLiveData: (equipmentId, data) =>
     set((state) => ({
-      liveData: { ...state.liveData, [equipmentId]: data },
+      liveData: {
+        ...state.liveData,
+        [equipmentId]: { ...state.liveData[equipmentId], ...data },
+      },
     })),
 }))
 

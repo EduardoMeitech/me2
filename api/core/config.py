@@ -46,5 +46,14 @@ class Settings(BaseSettings):
     equipment_config_path: str = "../config/equipment.json"
     sqlite_buffer_path: str = "./collector/buffer.db"
 
+    # SMTP (email alerts)
+    smtp_enabled: bool = False
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "me2@meitech.com.br"
+    smtp_from_name: str = "ME2 Alertas"
+
 
 settings = Settings()

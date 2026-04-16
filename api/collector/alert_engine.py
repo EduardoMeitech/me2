@@ -1,11 +1,13 @@
 """Alert engine for equipment downtime monitoring.
 
 Tracks per-equipment downtime duration and fires tiered alerts (L1, L2)
-when configurable thresholds are exceeded.
+when configurable thresholds are exceeded. Sends email notifications
+via the email service.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -64,7 +66,7 @@ class AlertEngine:
         now = datetime.now(tz=timezone.utc)
 
         if is_running:
-            return self._handle_uptime(serial_number, word_status, now)
+            return self._handle_uptime(serial_number, word_status, now, config)
         else:
             return self._handle_downtime(
                 serial_number, word_status, now, l1_min, l2_min, config
@@ -79,6 +81,7 @@ class AlertEngine:
         serial_number: str,
         word_status: int,
         now: datetime,
+        config: dict,
     ) -> Alert | None:
         """Machine is running — clear timers and emit resolution if we had an alert."""
         previous_level = self._alert_sent.get(serial_number, 0)
@@ -94,6 +97,7 @@ class AlertEngine:
                     f"{downtime_min:.1f} min downtime (was L{previous_level})"
                 )
                 logger.info(msg)
+                self._send_resolution_email(serial_number, downtime_min, msg, config)
                 return Alert(
                     serial_number=serial_number,
                     timestamp=now,
@@ -137,7 +141,7 @@ class AlertEngine:
                 f"{downtime_min:.1f} min (threshold={l2_min} min, status={word_status})"
             )
             logger.warning(msg)
-            self._fire_email(serial_number, msg, config, level=2)
+            self._send_alert_email(serial_number, 2, downtime_min, word_status, msg, config)
             return Alert(
                 serial_number=serial_number,
                 timestamp=now,
@@ -155,7 +159,7 @@ class AlertEngine:
                 f"{downtime_min:.1f} min (threshold={l1_min} min, status={word_status})"
             )
             logger.warning(msg)
-            self._fire_email(serial_number, msg, config, level=1)
+            self._send_alert_email(serial_number, 1, downtime_min, word_status, msg, config)
             return Alert(
                 serial_number=serial_number,
                 timestamp=now,
@@ -168,46 +172,60 @@ class AlertEngine:
         return None
 
     # ------------------------------------------------------------------
-    # Email placeholder
+    # Email sending (fire-and-forget in background)
     # ------------------------------------------------------------------
 
-    def _fire_email(
+    def _send_alert_email(
         self,
         serial_number: str,
+        level: int,
+        downtime_minutes: float,
+        word_status: int,
         message: str,
         config: dict,
-        level: int,
     ) -> None:
-        """Synchronous wrapper that schedules the async email send.
-
-        In the collector loop (async context) this would be awaited directly.
-        Here we just log, since actual email delivery is a TODO.
-        """
+        """Schedule async email send for a downtime alert."""
         recipients = config.get("alert_recipients", [])
-        subject = f"ME2 Downtime L{level} — {serial_number}"
-        logger.info(
-            "Would send email alert: subject='%s' to=%s", subject, recipients
-        )
-        # TODO: integrate with actual SMTP / notification service
-        # await self._send_email_alert(subject, message, recipients)
+        if not recipients:
+            logger.debug("No alert_recipients configured for %s", serial_number)
+            return
 
-    async def _send_email_alert(
+        try:
+            from api.services.email_service import build_alert_html, send_alert_email
+
+            subject = f"ME2 Alerta L{level} — {serial_number}"
+            body = build_alert_html(serial_number, level, downtime_minutes, word_status, message)
+
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(send_alert_email(subject, body, recipients))
+            else:
+                loop.run_until_complete(send_alert_email(subject, body, recipients))
+        except Exception:
+            logger.exception("Error scheduling alert email for %s", serial_number)
+
+    def _send_resolution_email(
         self,
-        subject: str,
-        body: str,
-        recipients: list[str],
+        serial_number: str,
+        downtime_minutes: float,
+        message: str,
+        config: dict,
     ) -> None:
-        """Placeholder for sending email alerts.
+        """Schedule async email send for an alert resolution."""
+        recipients = config.get("alert_recipients", [])
+        if not recipients:
+            return
 
-        Replace with aiosmtplib or an HTTP call to your notification
-        microservice.
-        """
-        logger.info(
-            "Sending email: subject='%s' recipients=%s body_len=%d",
-            subject,
-            recipients,
-            len(body),
-        )
-        # TODO: implement actual email sending
-        # async with aiosmtplib.SMTP(...) as smtp:
-        #     await smtp.send_message(msg)
+        try:
+            from api.services.email_service import build_resolution_html, send_alert_email
+
+            subject = f"ME2 Resolvido — {serial_number} retomou produção"
+            body = build_resolution_html(serial_number, downtime_minutes, message)
+
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(send_alert_email(subject, body, recipients))
+            else:
+                loop.run_until_complete(send_alert_email(subject, body, recipients))
+        except Exception:
+            logger.exception("Error scheduling resolution email for %s", serial_number)

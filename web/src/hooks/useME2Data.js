@@ -160,3 +160,57 @@ export function useActiveAlerts() {
 
   return { alerts, loading, refetch }
 }
+
+/**
+ * Fetch alert summary (counts).
+ */
+export function useAlertSummary() {
+  const [summary, setSummary] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  const refetch = useCallback(async () => {
+    try {
+      const res = await api.get('/api/v1/alerts/summary')
+      setSummary(res.data?.data ?? null)
+    } catch (err) {
+      console.error('Erro ao buscar resumo de alertas:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    refetch()
+    const interval = setInterval(refetch, 30000)
+    return () => clearInterval(interval)
+  }, [refetch])
+
+  return { summary, loading, refetch }
+}
+
+/**
+ * Fetch alert history (resolved).
+ */
+export function useAlertHistory(days = 7, equipmentId = null) {
+  const [history, setHistory] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const refetch = useCallback(async () => {
+    try {
+      const params = { days }
+      if (equipmentId) params.equipment_id = equipmentId
+      const res = await api.get('/api/v1/alerts/history', { params })
+      setHistory(res.data?.data ?? [])
+    } catch (err) {
+      console.error('Erro ao buscar histórico de alertas:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [days, equipmentId])
+
+  useEffect(() => {
+    refetch()
+  }, [refetch])
+
+  return { history, loading, refetch }
+}

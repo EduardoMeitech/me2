@@ -86,21 +86,24 @@ export default function Layout({ children }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Nav Rail (desktop) */}
-      <nav style={{
-        width: RAIL_WIDTH,
-        background: colors.meitech,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        paddingTop: 16,
-        gap: 4,
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        zIndex: 200,
-      }}>
+      {/* Nav Rail (desktop — hidden on mobile via CSS class) */}
+      <nav
+        className="me2-nav-rail"
+        style={{
+          width: RAIL_WIDTH,
+          background: colors.meitech,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          paddingTop: 16,
+          gap: 4,
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          bottom: 0,
+          zIndex: 200,
+        }}
+      >
         {/* Meitech Logo + ME2 */}
         <div
           style={{ cursor: 'pointer', textAlign: 'center', marginBottom: 24 }}
@@ -177,15 +180,18 @@ export default function Layout({ children }) {
       </nav>
 
       {/* Main content area */}
-      <main style={{
-        flex: 1,
-        marginLeft: RAIL_WIDTH,
-        padding: 24,
-        overflowY: 'auto',
-        maxHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-      }}>
+      <main
+        className="me2-main-content"
+        style={{
+          flex: 1,
+          marginLeft: RAIL_WIDTH,
+          padding: 24,
+          overflowY: 'auto',
+          maxHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         {/* Content */}
         <div style={{ flex: 1 }}>
           {children}
@@ -194,6 +200,54 @@ export default function Layout({ children }) {
         {/* Footer */}
         <ME2Footer />
       </main>
+
+      {/* Bottom Nav (mobile — hidden on desktop) */}
+      <nav
+        className="me2-bottom-nav"
+        style={{
+          display: 'none',
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 64,
+          background: colors.meitech,
+          justifyContent: 'space-around',
+          alignItems: 'center',
+          zIndex: 200,
+        }}
+      >
+        {navItems.map((item) => {
+          const isActive = location.pathname === item.path
+
+          return (
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              style={{
+                flex: 1,
+                padding: '8px 0',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2,
+                border: 'none',
+                borderRadius: shape.medium,
+                background: isActive ? 'rgba(255,255,255,0.22)' : 'transparent',
+                cursor: 'pointer',
+                color: '#FFFFFF',
+                opacity: isActive ? 1 : 0.7,
+                transition: 'background 0.2s, opacity 0.2s',
+              }}
+            >
+              <span style={{ fontSize: 20 }}>{item.icon}</span>
+              <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.3px' }}>
+                {item.label}
+              </span>
+            </button>
+          )
+        })}
+      </nav>
     </div>
   )
 }

@@ -118,6 +118,8 @@ class AlertResponse(BaseModel):
     started_at: datetime
     acknowledged_at: datetime | None = None
     resolved_at: datetime | None = None
+    equipment_name: str | None = None
+    serial_number: str | None = None
 
 
 # ---------------------------------------------------------------------------
